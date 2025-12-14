@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HealthImpro — Постуральная сетка</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    video, canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      padding: 10px 15px;
+      border-radius: 8px;
+    }
+
+    input, button {
+      font-size: 16px;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="container">
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+
+  <div id="controls">
+    <input type="number" id="heightInput" placeholder="Рост (см)" />
+    <button onclick="startCamera()">Включить камеру</button>
+  </div>
+</div>
+
+<script>
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  function startCamera() {
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          drawLoop();
+        };
+      })
+      .catch(err => alert('Ошибка доступа к камере'));
+  }
+
+  function drawLoop() {
+    requestAnimationFrame(drawLoop);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawGrid();
+  }
+
+  function drawGrid() {
+    const heightCm = parseInt(document.getElementById('heightInput').value);
+    if (!heightCm) return;
+
+    const pixelsPerCm = canvas.height / heightCm;
+    const centerX = canvas.width / 2;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
+
+    // Вертикальная ось
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, canvas.height);
+    ctx.stroke();
+
+    // Горизонтальные линии каждые 10 см
+    for (let cm = 0; cm <= heightCm; cm += 10) {
+      const y = canvas.height - cm * pixelsPerCm;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+  }
+</script>
+
+</body>
+</html>
