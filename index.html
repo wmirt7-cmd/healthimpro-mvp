@@ -47,7 +47,34 @@ async function startCamera() {
   document.getElementById('video').srcObject = stream;
 }
 
-// двойной тап по экрану — переключение камеры
+// сделать фото с учётом задержки
+function takePhoto() {
+  const delay = (facing === "user") ? 8000 : 0;
+
+  setTimeout(() => {
+    const video = document.getElementById("video");
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+
+    const img = document.createElement("img");
+    img.src = canvas.toDataURL("image/png");
+    img.style.width = "100%";
+    img.style.display = "block";
+
+    document.body.appendChild(img);
+  }, delay);
+}
+
+// один тап — фото
+document.addEventListener("click", () => {
+  takePhoto();
+});
+
+// двойной тап — смена камеры
 document.addEventListener("dblclick", () => {
   facing = (facing === "user") ? "environment" : "user";
   startCamera();
