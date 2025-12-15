@@ -57,11 +57,6 @@
   </div>
 </div>
 
-<script>
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-
   function startCamera() {
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
