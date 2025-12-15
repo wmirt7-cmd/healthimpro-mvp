@@ -56,14 +56,25 @@ function takePhoto() {
     return;
   }
 
-  const delay = (facing === "user") ? 8000 : 0;
+  if (video.videoWidth === 0 || video.videoHeight === 0) {
+    alert("Видео ещё не готово");
+    return;
+  }
 
-  setTimeout(() => {
-    // ждём, пока видео реально готово
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-      alert("Камера ещё не готова, попробуй ещё раз");
-      return;
-    }
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0);
+
+  const img = document.createElement("img");
+  img.src = canvas.toDataURL("image/png");
+  img.style.width = "100%";
+  img.style.display = "block";
+
+  document.body.appendChild(img);
+}
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
