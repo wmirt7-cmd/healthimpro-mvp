@@ -29,34 +29,36 @@
 </div>
 
 <script>
+const video = document.getElementById("video");
 let stream = null;
-let facing = "user"; // фронтальная по умолчанию
 
 async function startCamera() {
   try {
-    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+    }
 
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facing }
+      video: { facingMode: "user" }
     });
 
-    const video = document.getElementById("video");
     video.srcObject = stream;
-    await video.play(); // важно для iPhone
+    video.muted = true;
+    await video.play();
+
   } catch (e) {
-    alert("Камера не запустилась. Проверь разрешение в браузере.");
+    alert("Камера не запустилась");
+    console.error(e);
   }
 }
 
 function takePhoto() {
-  const video = document.getElementById("video");
-
   if (!video.srcObject) {
     alert("Сначала включи камеру");
     return;
   }
 
-  if (video.videoWidth === 0 || video.videoHeight === 0) {
+  if (video.videoWidth === 0) {
     alert("Видео ещё не готово");
     return;
   }
@@ -75,28 +77,6 @@ function takePhoto() {
 
   document.body.appendChild(img);
 }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-
-    const img = document.createElement("img");
-    img.src = canvas.toDataURL("image/png");
-    img.style.width = "100%";
-    img.style.display = "block";
-
-    document.body.appendChild(img);
-  }, delay);
-}
-
-// двойной тап по экрану — смена камеры
-document.addEventListener("dblclick", () => {
-  facing = (facing === "user") ? "environment" : "user";
-  startCamera();
-});
 </script>
 
 </body>
