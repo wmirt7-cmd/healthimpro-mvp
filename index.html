@@ -30,6 +30,7 @@
 
 <video id="video" autoplay playsinline></video>
 <button onclick="takePhoto()">Сделать фото</button>
+<button onclick="takePhoto()">Сделать фото</button>
 
 <script>
 let stream = null;
@@ -44,10 +45,11 @@ async function startCamera() {
     video: { facingMode: facing }
   });
 
-  document.getElementById('video').srcObject = stream;
+  const video = document.getElementById('video');
+  video.srcObject = stream;
+  await video.play(); // <-- ВАЖНО для iPhone
 }
 
-// фото с задержкой только для фронтальной камеры
 function takePhoto() {
   const delay = (facing === "user") ? 8000 : 0;
 
