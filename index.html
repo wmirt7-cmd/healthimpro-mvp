@@ -1,83 +1,263 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Healthimpro — Камера + Фото</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Healthimpro — Camera + Grid</title>
   <style>
-    body { margin: 0; background: black; overflow: hidden; }
-    video { width: 100vw; height: 100vh; object-fit: cover; }
-    #controls {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
-      display: flex;
-      gap: 10px;
+    :root { --ui-bg: rgba(0,0,0,0.65); --ui-fg: #fff; }
+    body { margin:0; background:#000; overflow:hidden; font-family: Arial, sans-serif; }
+    #stage { position:relative; width:100vw; height:100vh; background:#000; }
+    video, canvas { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+    #video { background:#000; }
+    #overlay { pointer-events:none; }
+    #hud {
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      background: var(--ui-bg); color: var(--ui-fg);
+      padding:10px 12px; border-radius:12px; z-index:10;
     }
-    button { padding: 12px 16px; font-size: 16px; }
+    #hud input, #hud button {
+      font-size:16px; padding:10px 12px; border-radius:10px; border:0; outline:none;
+    }
+    #hud input { width:130px; }
+    #hud button { background:#1f2937; color:#fff; }
+    #hud button:active { transform: translateY(1px); }
+    #toast {
+      position:fixed; top:18px; left:50%; transform:translateX(-50%);
+      background: var(--ui-bg); color:#fff; padding:10px 12px; border-radius:12px;
+      z-index:12; max-width:92vw; text-align:center; font-size:14px; display:none;
+    }
+    #countdown {
+      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+      background: rgba(0,0,0,0.55); color:#fff;
+      width:140px; height:140px; border-radius:70px;
+      display:none; align-items:center; justify-content:center;
+      font-size:64px; font-weight:700; z-index:11;
+      border: 3px solid rgba(255,255,255,0.25);
+    }
+    #captures {
+      position:fixed; right:10px; top:10px; z-index:20;
+      max-height: calc(100vh - 20px); overflow:auto; width:min(220px, 48vw);
+      display:flex; flex-direction:column; gap:10px;
+    }
+    #captures img {
+      width:100%; display:block; border-radius:10px; border:1px solid rgba(255,255,255,0.15);
+    }
   </style>
 </head>
 <body>
+  <div id="stage">
+    <video id="video" playsinline muted></video>
+    <canvas id="overlay"></canvas>
+  </div>
 
-<video id="video" autoplay playsinline></video>
+  <div id="toast"></div>
+  <div id="countdown">8</div>
+  <div id="captures"></div>
 
-<div id="controls">
-  <button onclick="startCamera()">Включить камеру</button>
-  <button onclick="takePhoto()">Сделать фото</button>
-</div>
+  <div id="hud">
+    <input id="heightCm" type="number" min="80" max="250" placeholder="Рост (см)" />
+    <button id="btnStart">Включить камеру</button>
+    <button id="btnSwitch">Сменить камеру</button>
+    <button id="btnPhoto">Сделать фото</button>
+  </div>
 
 <script>
-const video = document.getElementById("video");
-let stream = null;
+(() => {
+  const video = document.getElementById('video');
+  const overlay = document.getElementById('overlay');
+  const octx = overlay.getContext('2d');
+  const heightInput = document.getElementById('heightCm');
 
-async function startCamera() {
-  try {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
+  const btnStart = document.getElementById('btnStart');
+  const btnSwitch = document.getElementById('btnSwitch');
+  const btnPhoto = document.getElementById('btnPhoto');
+
+  const toast = document.getElementById('toast');
+  const countdownEl = document.getElementById('countdown');
+  const captures = document.getElementById('captures');
+
+  let stream = null;
+  let facing = 'user'; // 'user' (front) or 'environment' (back)
+
+  function showToast(msg, ms = 1800) {
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.style.display = 'none', ms);
+  }
+
+  function resizeOverlayToVideo() {
+    const vw = video.videoWidth || 0;
+    const vh = video.videoHeight || 0;
+    if (vw && vh) {
+      overlay.width = vw;
+      overlay.height = vh;
+    }
+  }
+
+  async function startCamera() {
+    try {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing },
+        audio: false
+      });
+      video.srcObject = stream;
+      video.muted = true;
+      await video.play();
+
+      // wait until dimensions available
+      await waitForVideoReady();
+      resizeOverlayToVideo();
+      showToast(facing === 'user' ? 'Фронтальная камера' : 'Основная камера');
+    } catch (e) {
+      console.error(e);
+      showToast('Камера не запустилась. Проверь разрешения.', 2500);
+    }
+  }
+
+  function waitForVideoReady(timeoutMs = 3000) {
+    const start = Date.now();
+    return new Promise((resolve, reject) => {
+      (function tick() {
+        if (video.videoWidth > 0 && video.videoHeight > 0) return resolve();
+        if (Date.now() - start > timeoutMs) return reject(new Error('video not ready'));
+        requestAnimationFrame(tick);
+      })();
+    });
+  }
+
+  function drawOverlay() {
+    if (!overlay.width || !overlay.height) return;
+
+    const h = parseInt(heightInput.value, 10);
+    const W = overlay.width;
+    const H = overlay.height;
+
+    octx.clearRect(0, 0, W, H);
+
+    // if no height, still show axes lightly
+    const pixelsPerCm = (h && h > 0) ? (H / h) : null;
+
+    // grid (neutral)
+    if (pixelsPerCm) {
+      const stepCm = 10; // cell size (change to 5 if needed)
+      const stepPx = stepCm * pixelsPerCm;
+
+      octx.lineWidth = 1;
+      octx.strokeStyle = 'rgba(255,255,255,0.18)';
+
+      // vertical grid
+      for (let x = 0; x <= W; x += stepPx) {
+        octx.beginPath(); octx.moveTo(x, 0); octx.lineTo(x, H); octx.stroke();
+      }
+      // horizontal grid
+      for (let y = 0; y <= H; y += stepPx) {
+        octx.beginPath(); octx.moveTo(0, y); octx.lineTo(W, y); octx.stroke();
+      }
     }
 
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" }
+    // central vertical axis (blue)
+    octx.lineWidth = 2;
+    octx.strokeStyle = 'rgba(0,170,255,0.85)';
+    octx.beginPath();
+    octx.moveTo(W / 2, 0);
+    octx.lineTo(W / 2, H);
+    octx.stroke();
+
+    // red level lines (shoulders, pelvis) — as fixed ratios for MVP
+    // You can tweak ratios later or make sliders.
+    const yShoulders = H * 0.28;
+    const yPelvis   = H * 0.58;
+
+    octx.lineWidth = 3;
+    octx.strokeStyle = 'rgba(255,0,0,0.85)';
+    octx.beginPath(); octx.moveTo(0, yShoulders); octx.lineTo(W, yShoulders); octx.stroke();
+    octx.beginPath(); octx.moveTo(0, yPelvis);   octx.lineTo(W, yPelvis);   octx.stroke();
+
+    // neck tilt line (profile hint) — short line near top center
+    // Simple visual cue: diagonal line anchored near upper center.
+    octx.lineWidth = 3;
+    octx.strokeStyle = 'rgba(255,0,0,0.75)';
+    const cx = W / 2;
+    const ny = H * 0.18;
+    octx.beginPath();
+    octx.moveTo(cx - W*0.06, ny + H*0.02);
+    octx.lineTo(cx + W*0.06, ny - H*0.03);
+    octx.stroke();
+  }
+
+  function loop() {
+    drawOverlay();
+    requestAnimationFrame(loop);
+  }
+
+  function captureFrameWithOverlay() {
+    const W = overlay.width || video.videoWidth;
+    const H = overlay.height || video.videoHeight;
+    if (!W || !H) return null;
+
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+
+    ctx.drawImage(video, 0, 0, W, H);
+    ctx.drawImage(overlay, 0, 0, W, H);
+
+    return c.toDataURL('image/png');
+  }
+
+  async function takePhoto() {
+    if (!video.srcObject) { showToast('Сначала включи камеру'); return; }
+
+    try { await waitForVideoReady(2500); resizeOverlayToVideo(); }
+    catch { showToast('Видео ещё не готово'); return; }
+
+    // delay only for front camera
+    if (facing === 'user') {
+      await runCountdown(8);
+    }
+
+    const dataUrl = captureFrameWithOverlay();
+    if (!dataUrl) { showToast('Не удалось сделать фото'); return; }
+
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    captures.prepend(img);
+    showToast('Фото готово');
+  }
+
+  function runCountdown(seconds) {
+    return new Promise((resolve) => {
+      let s = seconds;
+      countdownEl.textContent = String(s);
+      countdownEl.style.display = 'flex';
+
+      const t = setInterval(() => {
+        s -= 1;
+        if (s <= 0) {
+          clearInterval(t);
+          countdownEl.style.display = 'none';
+          resolve();
+        } else {
+          countdownEl.textContent = String(s);
+        }
+      }, 1000);
     });
-
-    video.srcObject = stream;
-    video.muted = true;
-    await video.play();
-
-  } catch (e) {
-    alert("Камера не запустилась");
-    console.error(e);
-  }
-}
-
-function takePhoto() {
-  if (!video.srcObject) {
-    alert("Сначала включи камеру");
-    return;
   }
 
-  if (video.videoWidth === 0) {
-    alert("Видео ещё не готово");
-    return;
-  }
+  btnStart.addEventListener('click', startCamera);
+  btnSwitch.addEventListener('click', async () => {
+    facing = (facing === 'user') ? 'environment' : 'user';
+    await startCamera();
+  });
+  btnPhoto.addEventListener('click', takePhoto);
 
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0);
-
-  const img = document.createElement("img");
-  img.src = canvas.toDataURL("image/png");
-  img.style.width = "100%";
-  img.style.display = "block";
-
-  document.body.appendChild(img);
-}
+  // start render loop
+  loop();
+})();
 </script>
-
 </body>
 </html>
