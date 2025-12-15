@@ -50,14 +50,21 @@ async function startCamera() {
 
 function takePhoto() {
   const video = document.getElementById("video");
+
   if (!video.srcObject) {
-    alert("Сначала нажми «Включить камеру»");
+    alert("Сначала включи камеру");
     return;
   }
 
   const delay = (facing === "user") ? 8000 : 0;
 
   setTimeout(() => {
+    // ждём, пока видео реально готово
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      alert("Камера ещё не готова, попробуй ещё раз");
+      return;
+    }
+
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
