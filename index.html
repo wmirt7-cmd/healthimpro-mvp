@@ -5,29 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Healthimpro — Camera + Grid</title>
   <style>
-    :root { --ui-bg: rgba(0,0,0,0.65); --ui-fg: #fff; }
     body { margin:0; background:#000; overflow:hidden; font-family: Arial, sans-serif; }
     #stage { position:relative; width:100vw; height:100vh; background:#000; }
-    video, canvas { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
-    #video { background:#000; }
+    video, canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
     #overlay { pointer-events:none; }
+
     #hud {
       position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
       display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-      background: var(--ui-bg); color: var(--ui-fg);
+      background: rgba(0,0,0,0.65); color:#fff;
       padding:10px 12px; border-radius:12px; z-index:10;
     }
     #hud input, #hud button {
       font-size:16px; padding:10px 12px; border-radius:10px; border:0; outline:none;
     }
     #hud input { width:130px; }
-    #hud button { background:#1f2937; color:#fff; }
-    #hud button:active { transform: translateY(1px); }
-    #toast {
-      position:fixed; top:18px; left:50%; transform:translateX(-50%);
-      background: var(--ui-bg); color:#fff; padding:10px 12px; border-radius:12px;
-      z-index:12; max-width:92vw; text-align:center; font-size:14px; display:none;
-    }
+
     #countdown {
       position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
       background: rgba(0,0,0,0.55); color:#fff;
@@ -36,14 +29,13 @@
       font-size:64px; font-weight:700; z-index:11;
       border: 3px solid rgba(255,255,255,0.25);
     }
+
     #captures {
       position:fixed; right:10px; top:10px; z-index:20;
-      max-height: calc(100vh - 20px); overflow:auto; width:min(220px, 48vw);
+      max-height: calc(100vh - 20px); overflow:auto; width:min(240px, 55vw);
       display:flex; flex-direction:column; gap:10px;
     }
-    #captures img {
-      width:100%; display:block; border-radius:10px; border:1px solid rgba(255,255,255,0.15);
-    }
+    #captures img { width:100%; display:block; border-radius:10px; border:1px solid rgba(255,255,255,0.15); }
   </style>
 </head>
 <body>
@@ -52,7 +44,6 @@
     <canvas id="overlay"></canvas>
   </div>
 
-  <div id="toast"></div>
   <div id="countdown">8</div>
   <div id="captures"></div>
 
@@ -74,59 +65,43 @@
   const btnSwitch = document.getElementById('btnSwitch');
   const btnPhoto = document.getElementById('btnPhoto');
 
-  const toast = document.getElementById('toast');
   const countdownEl = document.getElementById('countdown');
   const captures = document.getElementById('captures');
 
   let stream = null;
-  let facing = 'user'; // 'user' (front) or 'environment' (back)
+  let facing = 'user'; // front by default
 
-  function showToast(msg, ms = 1800) {
-    toast.textContent = msg;
-    toast.style.display = 'block';
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => toast.style.display = 'none', ms);
+  function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+  async function waitForVideoReady(timeoutMs = 3500) {
+    const t0 = performance.now();
+    while (performance.now() - t0 < timeoutMs) {
+      if (video.videoWidth > 0 && video.videoHeight > 0) return true;
+      await sleep(16);
+    }
+    return false;
   }
 
-  function resizeOverlayToVideo() {
+  function syncOverlaySize() {
     const vw = video.videoWidth || 0;
     const vh = video.videoHeight || 0;
-    if (vw && vh) {
+    if (vw && vh && (overlay.width !== vw || overlay.height !== vh)) {
       overlay.width = vw;
       overlay.height = vh;
     }
   }
 
   async function startCamera() {
-    try {
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing },
-        audio: false
-      });
-      video.srcObject = stream;
-      video.muted = true;
-      await video.play();
-
-      // wait until dimensions available
-      await waitForVideoReady();
-      resizeOverlayToVideo();
-      showToast(facing === 'user' ? 'Фронтальная камера' : 'Основная камера');
-    } catch (e) {
-      console.error(e);
-      showToast('Камера не запустилась. Проверь разрешения.', 2500);
-    }
-  }
-
-  function waitForVideoReady(timeoutMs = 3000) {
-    const start = Date.now();
-    return new Promise((resolve, reject) => {
-      (function tick() {
-        if (video.videoWidth > 0 && video.videoHeight > 0) return resolve();
-        if (Date.now() - start > timeoutMs) return reject(new Error('video not ready'));
-        requestAnimationFrame(tick);
-      })();
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing }, audio: false
     });
+    video.srcObject = stream;
+    video.muted = true;
+    await video.play();
+
+    const ok = await waitForVideoReady();
+    if (ok) syncOverlaySize();
   }
 
   function drawOverlay() {
@@ -138,37 +113,32 @@
 
     octx.clearRect(0, 0, W, H);
 
-    // if no height, still show axes lightly
-    const pixelsPerCm = (h && h > 0) ? (H / h) : null;
-
-    // grid (neutral)
-    if (pixelsPerCm) {
-      const stepCm = 10; // cell size (change to 5 if needed)
-      const stepPx = stepCm * pixelsPerCm;
+    // GRID (neutral) — scaled by height
+    if (h && h > 0) {
+      const pxPerCm = H / h;
+      const stepCm = 10;
+      const stepPx = stepCm * pxPerCm;
 
       octx.lineWidth = 1;
       octx.strokeStyle = 'rgba(255,255,255,0.18)';
 
-      // vertical grid
       for (let x = 0; x <= W; x += stepPx) {
         octx.beginPath(); octx.moveTo(x, 0); octx.lineTo(x, H); octx.stroke();
       }
-      // horizontal grid
       for (let y = 0; y <= H; y += stepPx) {
         octx.beginPath(); octx.moveTo(0, y); octx.lineTo(W, y); octx.stroke();
       }
     }
 
-    // central vertical axis (blue)
+    // central axis (blue)
     octx.lineWidth = 2;
     octx.strokeStyle = 'rgba(0,170,255,0.85)';
     octx.beginPath();
-    octx.moveTo(W / 2, 0);
-    octx.lineTo(W / 2, H);
+    octx.moveTo(W/2, 0);
+    octx.lineTo(W/2, H);
     octx.stroke();
 
-    // red level lines (shoulders, pelvis) — as fixed ratios for MVP
-    // You can tweak ratios later or make sliders.
+    // levels (red) — separate from grid (MVP fixed ratios)
     const yShoulders = H * 0.28;
     const yPelvis   = H * 0.58;
 
@@ -177,11 +147,9 @@
     octx.beginPath(); octx.moveTo(0, yShoulders); octx.lineTo(W, yShoulders); octx.stroke();
     octx.beginPath(); octx.moveTo(0, yPelvis);   octx.lineTo(W, yPelvis);   octx.stroke();
 
-    // neck tilt line (profile hint) — short line near top center
-    // Simple visual cue: diagonal line anchored near upper center.
-    octx.lineWidth = 3;
+    // neck tilt hint line (red)
     octx.strokeStyle = 'rgba(255,0,0,0.75)';
-    const cx = W / 2;
+    const cx = W/2;
     const ny = H * 0.18;
     octx.beginPath();
     octx.moveTo(cx - W*0.06, ny + H*0.02);
@@ -189,48 +157,15 @@
     octx.stroke();
   }
 
-  function loop() {
+  function rafLoop() {
+    // keep sizes in sync (important for capture!)
+    if (video.videoWidth && video.videoHeight) syncOverlaySize();
     drawOverlay();
-    requestAnimationFrame(loop);
-  }
-
-  function captureFrameWithOverlay() {
-    const W = overlay.width || video.videoWidth;
-    const H = overlay.height || video.videoHeight;
-    if (!W || !H) return null;
-
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const ctx = c.getContext('2d');
-
-    ctx.drawImage(video, 0, 0, W, H);
-    ctx.drawImage(overlay, 0, 0, W, H);
-
-    return c.toDataURL('image/png');
-  }
-
-  async function takePhoto() {
-    if (!video.srcObject) { showToast('Сначала включи камеру'); return; }
-
-    try { await waitForVideoReady(2500); resizeOverlayToVideo(); }
-    catch { showToast('Видео ещё не готово'); return; }
-
-    // delay only for front camera
-    if (facing === 'user') {
-      await runCountdown(8);
-    }
-
-    const dataUrl = captureFrameWithOverlay();
-    if (!dataUrl) { showToast('Не удалось сделать фото'); return; }
-
-    const img = document.createElement('img');
-    img.src = dataUrl;
-    captures.prepend(img);
-    showToast('Фото готово');
+    requestAnimationFrame(rafLoop);
   }
 
   function runCountdown(seconds) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       let s = seconds;
       countdownEl.textContent = String(s);
       countdownEl.style.display = 'flex';
@@ -248,6 +183,45 @@
     });
   }
 
+  function captureWithOverlay() {
+    const W = overlay.width || video.videoWidth;
+    const H = overlay.height || video.videoHeight;
+    if (!W || !H) return null;
+
+    const out = document.createElement('canvas');
+    out.width = W; out.height = H;
+    const ctx = out.getContext('2d');
+
+    ctx.drawImage(video, 0, 0, W, H);
+    ctx.drawImage(overlay, 0, 0, W, H);
+
+    return out.toDataURL('image/png');
+  }
+
+  async function takePhoto() {
+    if (!video.srcObject) return alert('Сначала включи камеру');
+
+    const ok = await waitForVideoReady();
+    if (!ok) return alert('Видео ещё не готово');
+
+    syncOverlaySize(); // critical: ensure overlay has real size
+    drawOverlay();     // critical: ensure overlay has current frame
+
+    if (facing === 'user') {
+      await runCountdown(8); // <- 8 sec timer back
+      // after countdown, refresh overlay once more
+      syncOverlaySize();
+      drawOverlay();
+    }
+
+    const dataUrl = captureWithOverlay();
+    if (!dataUrl) return alert('Не удалось сделать фото');
+
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    captures.prepend(img);
+  }
+
   btnStart.addEventListener('click', startCamera);
   btnSwitch.addEventListener('click', async () => {
     facing = (facing === 'user') ? 'environment' : 'user';
@@ -255,8 +229,7 @@
   });
   btnPhoto.addEventListener('click', takePhoto);
 
-  // start render loop
-  loop();
+  rafLoop();
 })();
 </script>
 </body>
