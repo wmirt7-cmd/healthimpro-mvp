@@ -108,5 +108,61 @@
   }
 </script>
 
+<script>
+let useFrontCamera = true;
+let stream = null;
+
+async function startCamera(facing = "user") {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+  }
+
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: facing }
+  });
+
+  const video = document.querySelector("video");
+  video.srcObject = stream;
+
+  useFrontCamera = (facing === "user");
+}
+
+async function takePhoto() {
+  const delay = useFrontCamera ? 8000 : 0;
+
+  setTimeout(() => {
+    const video = document.querySelector("video");
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+
+    const img = document.createElement("img");
+    img.src = canvas.toDataURL("image/png");
+    img.style.width = "100%";
+
+    document.body.appendChild(img);
+  }, delay);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  startCamera("user");
+
+  document.body.addEventListener("click", () => {
+    takePhoto();
+  });
+
+  document.body.addEventListener("dblclick", () => {
+    startCamera(useFrontCamera ? "environment" : "user");
+  });
+});
+</script>
+
+<script>
+
+</script>
+
 </body>
 </html>
