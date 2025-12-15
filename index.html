@@ -3,58 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Healthimpro — Камера</title>
+  <title>Healthimpro — Камера + Фото</title>
   <style>
-    body {
-      margin: 0;
-      background: black;
-      overflow: hidden;
-    }
-    video {
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-    }
-    button {
+    body { margin: 0; background: black; overflow: hidden; }
+    video { width: 100vw; height: 100vh; object-fit: cover; }
+    #controls {
       position: fixed;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      padding: 12px 18px;
-      font-size: 16px;
       z-index: 10;
+      display: flex;
+      gap: 10px;
     }
+    button { padding: 12px 16px; font-size: 16px; }
   </style>
 </head>
 <body>
 
 <video id="video" autoplay playsinline></video>
 
-<button onclick="startCamera()">Включить камеру</button>
-<button onclick="takePhoto()">Сделать фото</button>
+<div id="controls">
+  <button onclick="startCamera()">Включить камеру</button>
+  <button onclick="takePhoto()">Сделать фото</button>
+</div>
+
 <script>
 let stream = null;
 let facing = "user"; // фронтальная по умолчанию
 
 async function startCamera() {
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing }
+    });
+
+    const video = document.getElementById("video");
+    video.srcObject = stream;
+    await video.play(); // важно для iPhone
+  } catch (e) {
+    alert("Камера не запустилась. Проверь разрешение в браузере.");
   }
-
-  stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: facing }
-  });
-
-  const video = document.getElementById('video');
-  video.srcObject = stream;
-  await video.play(); // <-- ВАЖНО для iPhone
 }
 
 function takePhoto() {
+  const video = document.getElementById("video");
+  if (!video.srcObject) {
+    alert("Сначала нажми «Включить камеру»");
+    return;
+  }
+
   const delay = (facing === "user") ? 8000 : 0;
 
   setTimeout(() => {
-    const video = document.getElementById("video");
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -71,7 +74,7 @@ function takePhoto() {
   }, delay);
 }
 
-// двойной тап — смена камеры
+// двойной тап по экрану — смена камеры
 document.addEventListener("dblclick", () => {
   facing = (facing === "user") ? "environment" : "user";
   startCamera();
