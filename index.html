@@ -47,7 +47,7 @@ async function startCamera() {
   document.getElementById('video').srcObject = stream;
 }
 
-// сделать фото с учётом задержки
+// фото с задержкой только для фронтальной камеры
 function takePhoto() {
   const delay = (facing === "user") ? 8000 : 0;
 
@@ -68,11 +68,6 @@ function takePhoto() {
     document.body.appendChild(img);
   }, delay);
 }
-
-// один тап — фото
-document.addEventListener("click", () => {
-  takePhoto();
-});
 
 // двойной тап — смена камеры
 document.addEventListener("dblclick", () => {
