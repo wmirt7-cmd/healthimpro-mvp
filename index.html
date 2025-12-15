@@ -1,158 +1,47 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>HealthImpro — Постуральная сетка</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Healthimpro — Камера</title>
   <style>
     body {
       margin: 0;
-      background: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      text-align: center;
-    }
-
-    #container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
+      background: black;
       overflow: hidden;
     }
-
-    video, canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+    video {
+      width: 100vw;
+      height: 100vh;
       object-fit: cover;
     }
-
-    #controls {
-      position: absolute;
+    button {
+      position: fixed;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      padding: 10px 15px;
-      border-radius: 8px;
-    }
-
-    input, button {
+      padding: 12px 18px;
       font-size: 16px;
-      margin: 5px;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
 
-<div id="container">
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas"></canvas>
-
-  <div id="controls">
-    <input type="number" id="heightInput" placeholder="Рост (см)" />
-    <button onclick="startCamera()">Включить камеру</button>
-  </div>
-</div>
-
-  function startCamera() {
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        video.srcObject = stream;
-        video.onloadedmetadata = () => {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          drawLoop();
-        };
-      })
-      .catch(err => alert('Ошибка доступа к камере'));
-  }
-
-  function drawLoop() {
-    requestAnimationFrame(drawLoop);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawGrid();
-  }
-
-  function drawGrid() {
-    const heightCm = parseInt(document.getElementById('heightInput').value);
-    if (!heightCm) return;
-
-    const pixelsPerCm = canvas.height / heightCm;
-    const centerX = canvas.width / 2;
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.lineWidth = 1;
-
-    // Вертикальная ось
-    ctx.beginPath();
-    ctx.moveTo(centerX, 0);
-    ctx.lineTo(centerX, canvas.height);
-    ctx.stroke();
-
-    // Горизонтальные линии каждые 10 см
-    for (let cm = 0; cm <= heightCm; cm += 10) {
-      const y = canvas.height - cm * pixelsPerCm;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
-  }
-</script>
+<video id="video" autoplay playsinline></video>
+<button onclick="startCamera()">Включить камеру</button>
 
 <script>
-let useFrontCamera = true;
 let stream = null;
 
-async function startCamera(facing = "user") {
+async function startCamera() {
   if (stream) {
-    stream.getTracks().forEach(track => track.stop());
+    stream.getTracks().forEach(t => t.stop());
   }
 
-  stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: facing }
-  });
-
-  const video = document.querySelector("video");
-  video.srcObject = stream;
-
-  useFrontCamera = (facing === "user");
+  stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  document.getElementById('video').srcObject = stream;
 }
-
-async function takePhoto() {
-  const delay = useFrontCamera ? 8000 : 0;
-
-  setTimeout(() => {
-    const video = document.querySelector("video");
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-
-    const img = document.createElement("img");
-    img.src = canvas.toDataURL("image/png");
-    img.style.width = "100%";
-
-    document.body.appendChild(img);
-  }, delay);
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  startCamera("user");
-
-  document.body.addEventListener("click", () => {
-    takePhoto();
-  });
-
-  document.body.addEventListener("dblclick", () => {
-    startCamera(useFrontCamera ? "environment" : "user");
-  });
-});
 </script>
 
 </body>
