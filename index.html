@@ -33,15 +33,25 @@
 
 <script>
 let stream = null;
+let facing = "user"; // фронтальная по умолчанию
 
 async function startCamera() {
   if (stream) {
     stream.getTracks().forEach(t => t.stop());
   }
 
-  stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: facing }
+  });
+
   document.getElementById('video').srcObject = stream;
 }
+
+// двойной тап по экрану — переключение камеры
+document.addEventListener("dblclick", () => {
+  facing = (facing === "user") ? "environment" : "user";
+  startCamera();
+});
 </script>
 
 </body>
