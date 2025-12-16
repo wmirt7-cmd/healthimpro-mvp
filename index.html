@@ -6,7 +6,7 @@
 <title>Healthimpro — Posture Grid</title>
 
 <style>
-  body { margin:0; background:#000; overflow:hidden; font-family:Arial, Helvetica, sans-serif; }
+  body { margin:0; background:#000; overflow:hidden; font-family:-apple-system, Helvetica Neue, Arial, sans-serif; }
   #stage { position:relative; width:100vw; height:100vh; }
   video, canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   canvas { pointer-events:none; }
@@ -124,6 +124,7 @@
     const step = pxPerCm * 10;
     const centerX = canvas.width / 2;
 
+    // сетка
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
     ctx.lineWidth = 1;
 
@@ -137,19 +138,20 @@
       ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
     }
 
+    // центральная ось
     ctx.strokeStyle='rgba(0,170,255,0.95)';
     ctx.lineWidth=3;
     ctx.beginPath();
     ctx.moveTo(centerX,0); ctx.lineTo(centerX,canvas.height); ctx.stroke();
 
-    // ---- ДОБРОБУТ ----
+    // ДОБРОБУТ — жирно, слева от оси
     ctx.fillStyle = 'white';
-    ctx.font = '36px -apple-system, Helvetica Neue, Arial';
+    ctx.font = '700 40px -apple-system, Helvetica Neue, Arial';
     ctx.textAlign = 'right';
-    ctx.fillText('ДОБРОБУТ', centerX - 20, 44);
+    ctx.fillText('ДОБРОБУТ', centerX - 60, 52);
 
-    // нижняя подпись
-    ctx.font = '16px -apple-system, Helvetica Neue, Arial';
+    // низ
+    ctx.font = '300 16px -apple-system, Helvetica Neue, Arial';
     ctx.textAlign = 'center';
     ctx.fillText('healthimpro.com', canvas.width/2, canvas.height - 20);
   }
