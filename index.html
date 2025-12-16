@@ -180,16 +180,19 @@ function drawOverlay(){
   ctx.lineTo(cx,canvas.height);
   ctx.stroke();
 
-  // брендинг справа от оси
-const textX = Math.min(cx + canvas.width * 0.12, canvas.width - 260);
-  ctx.fillStyle = '#fff';
-  ctx.font = '700 28px Arial';
-  ctx.textAlign = 'left';
-  ctx.fillText('ДОБРОБУТ', textX, 44);
+// БРЕНДИНГ ОТ СИНЕЙ ОСИ
+const brandX = cx + 12;
 
-  ctx.font = '300 16px Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText('healthimpro.com', textX, canvas.height - 18);
+// ДОБРОБУТ
+ctx.textAlign = 'left';
+ctx.font = '700 28px Arial';
+ctx.fillStyle = '#fff';
+ctx.fillText('ДОБРОБУТ', brandX, 44);
+
+// healthimpro.com
+ctx.font = '300 16px Arial';
+ctx.fillStyle = 'rgba(255,255,255,0.85)';
+ctx.fillText('healthimpro.com', brandX, canvas.height - 18);
 }
 
 (function loop(){
