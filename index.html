@@ -24,16 +24,6 @@ button{background:#1f2937;color:#fff}
   align-items:center;justify-content:center;
   font-size:72px;color:#fff;background:rgba(0,0,0,.55);z-index:20
 }
-
-#result{
-  position:fixed;inset:0;background:#000;
-  z-index:30;display:none;flex-direction:column
-}
-#resultBar{
-  display:flex;gap:12px;padding:12px;
-  background:rgba(0,0,0,.75);color:#fff
-}
-#resultImg{width:100%;height:auto}
 </style>
 </head>
 
@@ -53,24 +43,16 @@ button{background:#1f2937;color:#fff}
   <button id="btnPhoto">Фото</button>
 </div>
 
-<div id="result">
-  <div id="resultBar">
-    <button onclick="closeResult()">Назад</button>
-  </div>
-  <img id="resultImg">
-</div>
-
 <script>
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const heightInput = document.getElementById('heightCm');
 const countdown = document.getElementById('countdown');
-const result = document.getElementById('result');
-const resultImg = document.getElementById('resultImg');
 
 let stream = null;
 let facing = 'user';
+let freeze = false;
 
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
@@ -92,6 +74,8 @@ async function switchCamera(){
 }
 
 async function takePhoto(){
+  freeze = true;
+
   if(facing === 'user'){
     for(let i=8;i>0;i--){
       countdown.textContent=i;
@@ -101,8 +85,6 @@ async function takePhoto(){
     countdown.style.display='none';
   }
 
-  drawOverlay();
-
   const out = document.createElement('canvas');
   out.width = canvas.width;
   out.height = canvas.height;
@@ -110,12 +92,9 @@ async function takePhoto(){
   octx.drawImage(video,0,0);
   octx.drawImage(canvas,0,0);
 
-  resultImg.src = out.toDataURL('image/png');
-  result.style.display='flex';
-}
+  window.open(out.toDataURL('image/png'), '_blank');
 
-function closeResult(){
-  result.style.display='none';
+  freeze = false;
 }
 
 function drawOverlay(){
@@ -156,7 +135,9 @@ document.getElementById('btnSwitch').onclick=switchCamera;
 document.getElementById('btnPhoto').onclick=takePhoto;
 
 (function loop(){
-  if(video.videoWidth) drawOverlay();
+  if(!freeze && video.videoWidth){
+    drawOverlay();
+  }
   requestAnimationFrame(loop);
 })();
 </script>
