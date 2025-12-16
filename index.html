@@ -6,24 +6,24 @@
 <title>Healthimpro</title>
 
 <style>
-body{margin:0;background:#000;overflow:hidden;font-family:Arial,sans-serif}
-#stage{position:relative;width:100vw;height:100vh}
-video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-canvas{pointer-events:none}
+  body{margin:0;background:#000;overflow:hidden;font-family:Arial,sans-serif}
+  #stage{position:relative;width:100vw;height:100vh}
+  video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  canvas{pointer-events:none}
 
-#controls{
-  position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
-  display:flex;gap:10px;padding:10px 14px;
-  background:rgba(0,0,0,.65);border-radius:14px;z-index:10
-}
-input,button{font-size:16px;padding:10px 14px;border-radius:10px;border:none}
-button{background:#1f2937;color:#fff}
+  #controls{
+    position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    display:flex;gap:10px;padding:10px 14px;
+    background:rgba(0,0,0,.65);border-radius:14px;z-index:10;align-items:center
+  }
+  input,button{font-size:16px;padding:10px 14px;border-radius:10px;border:none}
+  button{background:#1f2937;color:#fff}
 
-#countdown{
-  position:fixed;inset:0;display:none;
-  align-items:center;justify-content:center;
-  font-size:72px;color:#fff;background:rgba(0,0,0,.55);z-index:20
-}
+  #countdown{
+    position:fixed;inset:0;display:none;
+    align-items:center;justify-content:center;
+    font-size:72px;color:#fff;background:rgba(0,0,0,.55);z-index:20
+  }
 </style>
 </head>
 
@@ -57,54 +57,72 @@ let freeze = false;
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 async function startCamera(){
-  if(stream) stream.getTracks().forEach(t=>t.stop());
-  stream = await navigator.mediaDevices.getUserMedia({
-    video:{facingMode:facing},audio:false
-  });
-  video.srcObject = stream;
-  await video.play();
-  while(!video.videoWidth) await sleep(16);
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  try{
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:facing}, audio:false
+    });
+
+    video.srcObject = stream;
+    await video.play();
+
+    while(!video.videoWidth || !video.videoHeight) await sleep(16);
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  }catch(e){
+    alert("Камера не запустилась. Проверь разрешение камеры.");
+  }
 }
 
 async function switchCamera(){
-  facing = facing === 'user' ? 'environment' : 'user';
+  facing = (facing === 'user') ? 'environment' : 'user';
   await startCamera();
 }
 
-// На iOS открытие в новой вкладке часто блокируется.
-// Поэтому оставляем стабильный путь: создаём файл и предлагаем "Поделиться/Сохранить".
-function downloadImage(dataUrl){
+// Самый стабильный путь на iOS: скачать PNG → затем Share / Files / отправка врачу
+function downloadPng(dataUrl){
   const a = document.createElement('a');
   a.href = dataUrl;
-  a.download = 'healthimpro.png';
+  a.download = `healthimpro_${Date.now()}.png`;
   document.body.appendChild(a);
   a.click();
   a.remove();
 }
 
 async function takePhoto(){
+  if(!video.srcObject){
+    alert("Сначала включи камеру");
+    return;
+  }
+  if(!video.videoWidth){
+    alert("Видео ещё не готово");
+    return;
+  }
+
   freeze = true;
 
+  // задержка только для фронтальной камеры
   if(facing === 'user'){
     for(let i=8;i>0;i--){
-      countdown.textContent=i;
-      countdown.style.display='flex';
+      countdown.textContent = i;
+      countdown.style.display = 'flex';
       await sleep(1000);
     }
-    countdown.style.display='none';
+    countdown.style.display = 'none';
   }
 
   const out = document.createElement('canvas');
   out.width = canvas.width;
   out.height = canvas.height;
   const octx = out.getContext('2d');
-  octx.drawImage(video,0,0);
-  octx.drawImage(canvas,0,0);
+
+  octx.drawImage(video, 0, 0);
+  octx.drawImage(canvas, 0, 0);
 
   const dataUrl = out.toDataURL('image/png');
-  downloadImage(dataUrl);
+  downloadPng(dataUrl);
 
   freeze = false;
 }
@@ -115,179 +133,44 @@ function drawOverlay(){
   const h = parseInt(heightInput.value,10);
   if(!h) return;
 
-  const step = (canvas.height / h) * 10;
-  const cx = canvas.width/2;
+  const step = (canvas.height / h) * 10; // 10 см шаг
+  const cx = canvas.width / 2;
 
-  ctx.strokeStyle='rgba(255,255,255,0.25)';
-  ctx.lineWidth=1;
+  // сетка
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1;
 
-  for(let x=cx;x<=canvas.width;x+=step){
-    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
+  for(let x=cx; x<=canvas.width; x+=step){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
   }
-  for(let x=cx-step;x>=0;x-=step){
-    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
+  for(let x=cx-step; x>=0; x-=step){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
   }
-  for(let y=canvas.height;y>=0;y-=step){
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();
+  for(let y=canvas.height; y>=0; y-=step){
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
   }
 
-  // Центральная ось
-  ctx.strokeStyle='rgba(0,170,255,0.95)';
-  ctx.lineWidth=3;
-  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,canvas.height);ctx.stroke();
+  // центральная ось
+  ctx.strokeStyle = 'rgba(0,170,255,0.95)';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx,canvas.height); ctx.stroke();
 
   // ДОБРОБУТ (без сердца)
-  ctx.fillStyle='#fff';
-  ctx.font='700 28px Arial';
-  ctx.textAlign='left';
-  ctx.fillText('ДОБРОБУТ',24,44);
+  ctx.fillStyle = '#fff';
+  ctx.font = '700 28px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('ДОБРОБУТ', 24, 44);
 
-  // healthimpro.com — тонким шрифтом внизу, попадает в фото
-  ctx.font='300 16px Arial';
-  ctx.textAlign='center';
-  ctx.fillText('healthimpro.com', canvas.width/2, canvas.height - 20);
+  // healthimpro.com (низ, тонко)
+  ctx.font = '300 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillText('healthimpro.com', canvas.width/2, canvas.height - 18);
 }
 
-document.getElementById('btnStart').onclick=startCamera;
-document.getElementById('btnSwitch').onclick=switchCamera;
-document.getElementById('btnPhoto').onclick=takePhoto;
-
-(function loop(){
-  if(!freeze && video.videoWidth){
-    drawOverlay();
-  }
-  requestAnimationFrame(loop);
-})();
-</script>
-
-</body>
-</html>head>
-
-<body>
-
-<div id="stage">
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="canvas"></canvas>
-</div>
-
-<div id="countdown">8</div>
-
-<div id="controls">
-  <input id="heightCm" type="number" placeholder="Рост (см)">
-  <button id="btnStart">Камера</button>
-  <button id="btnSwitch">↔</button>
-  <button id="btnPhoto">Фото</button>
-</div>
-
-<script>
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const heightInput = document.getElementById('heightCm');
-const countdown = document.getElementById('countdown');
-
-let stream = null;
-let facing = 'user';
-let freeze = false;
-
-const sleep = ms => new Promise(r=>setTimeout(r,ms));
-
-async function startCamera(){
-  if(stream) stream.getTracks().forEach(t=>t.stop());
-  stream = await navigator.mediaDevices.getUserMedia({
-    video:{facingMode:facing},audio:false
-  });
-  video.srcObject = stream;
-  await video.play();
-  while(!video.videoWidth) await sleep(16);
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-}
-
-async function switchCamera(){
-  facing = facing === 'user' ? 'environment' : 'user';
-  await startCamera();
-}
-
-// ✅ Самый стабильный способ открыть картинку на iPhone:
-// делаем <a target=_blank href=dataURL> и кликаем по нему
-function openImageInNewTab(dataUrl){
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.target = '_blank';
-  a.rel = 'noopener';
-  // iOS лучше реагирует, если элемент в DOM
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
-async function takePhoto(){
-  freeze = true;
-
-  if(facing === 'user'){
-    for(let i=8;i>0;i--){
-      countdown.textContent=i;
-      countdown.style.display='flex';
-      await sleep(1000);
-    }
-    countdown.style.display='none';
-  }
-
-  // IMPORTANT: overlay рисуется в loop, поэтому тут не вызываем drawOverlay()
-
-  const out = document.createElement('canvas');
-  out.width = canvas.width;
-  out.height = canvas.height;
-  const octx = out.getContext('2d');
-  octx.drawImage(video,0,0);
-  octx.drawImage(canvas,0,0);
-
-  const dataUrl = out.toDataURL('image/png');
-
-  // Открываем в новой вкладке
-  openImageInNewTab(dataUrl);
-
-  freeze = false;
-}
-
-function drawOverlay(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  const h = parseInt(heightInput.value,10);
-  if(!h) return;
-
-  const step = (canvas.height / h) * 10;
-  const cx = canvas.width/2;
-
-  ctx.strokeStyle='rgba(255,255,255,0.25)';
-  ctx.lineWidth=1;
-
-  for(let x=cx;x<=canvas.width;x+=step){
-    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
-  }
-  for(let x=cx-step;x>=0;x-=step){
-    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
-  }
-  for(let y=canvas.height;y>=0;y-=step){
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();
-  }
-
-  ctx.strokeStyle='rgba(0,170,255,0.95)';
-  ctx.lineWidth=3;
-  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,canvas.height);ctx.stroke();
-
-  // Лого как было (пока не трогаем)
-  ctx.fillStyle='#fff';
-  ctx.font='700 28px Arial';
-  ctx.fillText('ДОБРОБУТ',24,44);
-  ctx.fillStyle='red';
-  ctx.fillText('❤',220,44);
-}
-
-document.getElementById('btnStart').onclick=startCamera;
-document.getElementById('btnSwitch').onclick=switchCamera;
-document.getElementById('btnPhoto').onclick=takePhoto;
+document.getElementById('btnStart').onclick = startCamera;
+document.getElementById('btnSwitch').onclick = switchCamera;
+document.getElementById('btnPhoto').onclick = takePhoto;
 
 (function loop(){
   if(!freeze && video.videoWidth){
