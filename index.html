@@ -73,6 +73,19 @@ async function switchCamera(){
   await startCamera();
 }
 
+// ✅ Самый стабильный способ открыть картинку на iPhone:
+// делаем <a target=_blank href=dataURL> и кликаем по нему
+function openImageInNewTab(dataUrl){
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  // iOS лучше реагирует, если элемент в DOM
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 async function takePhoto(){
   freeze = true;
 
@@ -85,6 +98,8 @@ async function takePhoto(){
     countdown.style.display='none';
   }
 
+  // IMPORTANT: overlay рисуется в loop, поэтому тут не вызываем drawOverlay()
+
   const out = document.createElement('canvas');
   out.width = canvas.width;
   out.height = canvas.height;
@@ -92,7 +107,10 @@ async function takePhoto(){
   octx.drawImage(video,0,0);
   octx.drawImage(canvas,0,0);
 
-  window.open(out.toDataURL('image/png'), '_blank');
+  const dataUrl = out.toDataURL('image/png');
+
+  // Открываем в новой вкладке
+  openImageInNewTab(dataUrl);
 
   freeze = false;
 }
@@ -123,6 +141,7 @@ function drawOverlay(){
   ctx.lineWidth=3;
   ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,canvas.height);ctx.stroke();
 
+  // Лого как было (пока не трогаем)
   ctx.fillStyle='#fff';
   ctx.font='700 28px Arial';
   ctx.fillText('ДОБРОБУТ',24,44);
