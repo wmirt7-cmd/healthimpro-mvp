@@ -37,16 +37,16 @@
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 8px;
-    padding: 10px 12px;
+    gap: 10px;
+    padding: 10px 14px;
     background: rgba(0,0,0,.65);
-    border-radius: 12px;
+    border-radius: 14px;
     z-index: 10;
   }
 
   input, button {
     font-size: 16px;
-    padding: 10px 12px;
+    padding: 10px 14px;
     border-radius: 10px;
     border: none;
   }
@@ -54,6 +54,18 @@
   button {
     background: #1f2937;
     color: #fff;
+  }
+
+  #countdown {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 72px;
+    color: #fff;
+    background: rgba(0,0,0,.55);
+    z-index: 20;
   }
 </style>
 </head>
@@ -65,9 +77,12 @@
   <canvas id="overlay"></canvas>
 </div>
 
+<div id="countdown">8</div>
+
 <div id="controls">
   <input id="heightCm" type="number" placeholder="Рост (см)">
   <button id="btnStart">Камера</button>
+  <button id="btnPhoto">Фото</button>
 </div>
 
 <script>
@@ -75,22 +90,38 @@
   const video = document.getElementById('video');
   const canvas = document.getElementById('overlay');
   const ctx = canvas.getContext('2d');
+
   const heightInput = document.getElementById('heightCm');
   const btnStart = document.getElementById('btnStart');
+  const btnPhoto  = document.getElementById('btnPhoto');
+  const countdown = document.getElementById('countdown');
 
   let stream = null;
+  let facing = 'user';
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   async function startCamera() {
     if (stream) stream.getTracks().forEach(t => t.stop());
-    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing },
+      audio: false
+    });
     video.srcObject = stream;
     await video.play();
     while (!video.videoWidth) await sleep(16);
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     draw();
+  }
+
+  async function runCountdown() {
+    for (let i = 8; i > 0; i--) {
+      countdown.textContent = i;
+      countdown.style.display = 'flex';
+      await sleep(1000);
+    }
+    countdown.style.display = 'none';
   }
 
   function draw() {
@@ -101,51 +132,63 @@
       const step = (canvas.height / hCm) * 10;
       const cx = canvas.width / 2;
 
-      // сетка
+      // Сетка
       ctx.strokeStyle = 'rgba(255,255,255,0.25)';
       ctx.lineWidth = 1;
 
       for (let x = cx; x <= canvas.width; x += step) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
       }
       for (let x = cx - step; x >= 0; x -= step) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
       }
       for (let y = canvas.height; y >= 0; y -= step) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
       }
 
-      // центральная ось
+      // Центральная ось
       ctx.strokeStyle = 'rgba(0,170,255,0.95)';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(cx, 0);
-      ctx.lineTo(cx, canvas.height);
+      ctx.moveTo(cx,0);
+      ctx.lineTo(cx,canvas.height);
       ctx.stroke();
     }
 
-    // НАДПИСЬ ДОБРОБУТ — ГАРАНТИРОВАННО
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 29px Arial';
+    // ЛОГО ДОБРОБУТ + СЕРДЦЕ
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 28px Arial';
     ctx.textAlign = 'left';
-    ctx.direction = 'ltr';
+    ctx.fillText('ДОБРОБУТ', 24, 44);
 
-    // ПЯТЬ ПРОБЕЛОВ ПЕРЕД ТЕКСТОМ
-    ctx.fillText('     ДОБРОБУТ', 24, 44);
+    // Сердце
+    ctx.font = '28px Arial';
+    ctx.fillStyle = 'red';
+    ctx.fillText('❤', 210, 44);
 
     requestAnimationFrame(draw);
   }
 
+  async function takePhoto() {
+    if (facing === 'user') {
+      await runCountdown();
+    }
+
+    const out = document.createElement('canvas');
+    out.width = canvas.width;
+    out.height = canvas.height;
+    const octx = out.getContext('2d');
+    octx.drawImage(video, 0, 0);
+    octx.drawImage(canvas, 0, 0);
+
+    const img = document.createElement('img');
+    img.src = out.toDataURL('image/png');
+    img.style.width = '100%';
+    document.body.appendChild(img);
+  }
+
   btnStart.onclick = startCamera;
+  btnPhoto.onclick = takePhoto;
 })();
 </script>
 
