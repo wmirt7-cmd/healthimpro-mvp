@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Healthimpro — Posture Grid</title>
 
 <style>
@@ -51,7 +51,7 @@
 <div id="countdown">8</div>
 
 <div id="controls">
-  <input id="heightCm" type="number" placeholder="Рост (см)">
+  <input id="heightCm" type="number" min="80" max="250" placeholder="Рост (см)" />
   <button id="btnStart">Камера</button>
   <button id="btnSwitch">↔</button>
   <button id="btnPhoto">Фото</button>
@@ -63,7 +63,7 @@
     <button id="btnShare">Поделиться</button>
   </div>
   <div id="resultImgWrap">
-    <img id="resultImg">
+    <img id="resultImg" alt="result">
   </div>
 </div>
 
@@ -89,7 +89,7 @@
   let facing = 'user';
   let lastDataUrl = null;
 
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   async function waitForVideo() {
     while (video.videoWidth === 0 || video.videoHeight === 0) await sleep(16);
@@ -98,112 +98,140 @@
   function resizeCanvas() {
     const w = video.videoWidth, h = video.videoHeight;
     if (w && h && (canvas.width !== w || canvas.height !== h)) {
-      canvas.width = w; canvas.height = h;
+      canvas.width = w;
+      canvas.height = h;
     }
   }
 
   async function startCamera() {
-    if (stream) stream.getTracks().forEach(t => t.stop());
-    stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:facing }, audio:false
-    });
-    video.srcObject = stream;
-    video.muted = true;
-    await video.play();
-    await waitForVideo();
-    resizeCanvas();
+    try {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing },
+        audio: false
+      });
+
+      video.srcObject = stream;
+      video.muted = true;
+      await video.play();
+
+      await waitForVideo();
+      resizeCanvas();
+    } catch (e) {
+      alert('Камера не запустилась. Проверь разрешения.');
+      console.error(e);
+    }
   }
 
-  function drawGridAndBrand(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+  function drawGridAndBrand() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const hCm = parseInt(heightInput.value,10);
-    if(!hCm) return;
+    const hCm = parseInt(heightInput.value, 10);
+    if (!hCm || hCm <= 0) return;
 
     const pxPerCm = canvas.height / hCm;
-    const step = pxPerCm * 10;
+    const step = pxPerCm * 10; // 10 см
     const centerX = canvas.width / 2;
 
-    // сетка
+    // Сетка: вертикали от центра + горизонтали от низа
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
     ctx.lineWidth = 1;
 
-    for(let x=centerX; x<=canvas.width; x+=step){
-      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+    for (let x = centerX; x <= canvas.width; x += step) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
     }
-    for(let x=centerX-step; x>=0; x-=step){
-      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+    for (let x = centerX - step; x >= 0; x -= step) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
     }
-    for(let y=canvas.height; y>=0; y-=step){
-      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+    for (let y = canvas.height; y >= 0; y -= step) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
     }
 
-    // центральная ось
-    ctx.strokeStyle='rgba(0,170,255,0.95)';
-    ctx.lineWidth=3;
+    // Центральная линия сетки (синяя)
+    ctx.strokeStyle = 'rgba(0,170,255,0.95)';
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(centerX,0); ctx.lineTo(centerX,canvas.height); ctx.stroke();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, canvas.height);
+    ctx.stroke();
 
-    // ДОБРОБУТ — жирно, слева от оси
+    // ДОБРОБУТ: жирно, полностью слева от оси, без обрезки
     ctx.fillStyle = 'white';
     ctx.font = '700 40px -apple-system, Helvetica Neue, Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText('ДОБРОБУТ', centerX - 60, 52);
+    ctx.textAlign = 'left';
+    const logoX = Math.max(20, centerX - 260); // гарантирует "левее оси" и не обрежет слева
+    ctx.fillText('ДОБРОБУТ', logoX, 52);
 
-    // низ
+    // Низ: healthimpro.com тонко
     ctx.font = '300 16px -apple-system, Helvetica Neue, Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('healthimpro.com', canvas.width/2, canvas.height - 20);
+    ctx.fillText('healthimpro.com', canvas.width / 2, canvas.height - 20);
   }
 
-  async function runCountdown(){
-    for(let i=8;i>0;i--){
-      countdown.textContent=i;
-      countdown.style.display='flex';
+  async function runCountdown() {
+    for (let i = 8; i > 0; i--) {
+      countdown.textContent = i;
+      countdown.style.display = 'flex';
       await sleep(1000);
     }
-    countdown.style.display='none';
+    countdown.style.display = 'none';
   }
 
-  function compose(){
-    const out=document.createElement('canvas');
-    out.width=canvas.width; out.height=canvas.height;
-    const octx=out.getContext('2d');
-    octx.drawImage(video,0,0);
-    octx.drawImage(canvas,0,0);
+  function compose() {
+    const out = document.createElement('canvas');
+    out.width = canvas.width;
+    out.height = canvas.height;
+    const octx = out.getContext('2d');
+    octx.drawImage(video, 0, 0);
+    octx.drawImage(canvas, 0, 0);
     return out.toDataURL('image/png');
   }
 
-  async function takePhoto(){
-    if(!video.srcObject) return;
+  async function takePhoto() {
+    if (!video.srcObject) return alert('Сначала включи камеру');
+    const hCm = parseInt(heightInput.value, 10);
+    if (!hCm || hCm <= 0) return alert('Введи рост (см)');
+
     await waitForVideo();
     resizeCanvas();
     drawGridAndBrand();
-    if(facing==='user'){
+
+    if (facing === 'user') {
       await runCountdown();
+      resizeCanvas();
       drawGridAndBrand();
     }
+
     lastDataUrl = compose();
     resultImg.src = lastDataUrl;
-    result.style.display='flex';
+    result.style.display = 'flex';
   }
 
-  btnStart.onclick=startCamera;
-  btnSwitch.onclick=async()=>{ facing=facing==='user'?'environment':'user'; await startCamera(); };
-  btnPhoto.onclick=takePhoto;
-  btnBack.onclick=()=>result.style.display='none';
+  btnStart.onclick = startCamera;
+  btnSwitch.onclick = async () => {
+    facing = (facing === 'user') ? 'environment' : 'user';
+    await startCamera();
+  };
+  btnPhoto.onclick = takePhoto;
 
-  btnShare.onclick=async()=>{
-    if(!lastDataUrl) return;
-    const blob=await (await fetch(lastDataUrl)).blob();
-    const file=new File([blob],'posture.png',{type:'image/png'});
-    if(navigator.share && navigator.canShare({files:[file]})){
-      await navigator.share({files:[file]});
+  btnBack.onclick = () => { result.style.display = 'none'; };
+
+  btnShare.onclick = async () => {
+    if (!lastDataUrl) return;
+    try {
+      const blob = await (await fetch(lastDataUrl)).blob();
+      const file = new File([blob], 'posture.png', { type: 'image/png' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  (function loop(){
-    if(video.videoWidth){
+  (function loop() {
+    if (video.videoWidth) {
       resizeCanvas();
       drawGridAndBrand();
     }
