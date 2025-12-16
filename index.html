@@ -1,4 +1,4 @@
-<!DOCTYPE<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -140,15 +140,21 @@ function drawOverlay(){
     ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();
   }
 
+  // центральная ось
   ctx.strokeStyle='rgba(0,170,255,0.95)';
   ctx.lineWidth=3;
   ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,canvas.height);ctx.stroke();
 
+  // ДОБРОБУТ (без сердца)
   ctx.fillStyle='#fff';
   ctx.font='700 28px Arial';
+  ctx.textAlign='left';
   ctx.fillText('ДОБРОБУТ',24,44);
-  ctx.fillStyle='red';
-  ctx.fillText('❤',220,44);
+
+  // healthimpro.com — внизу, попадает в фото
+  ctx.font='300 16px Arial';
+  ctx.textAlign='center';
+  ctx.fillText('healthimpro.com', canvas.width/2, canvas.height - 20);
 }
 
 document.getElementById('btnStart').onclick=startCamera;
