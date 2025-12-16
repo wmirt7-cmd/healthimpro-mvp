@@ -73,6 +73,142 @@ async function switchCamera(){
   await startCamera();
 }
 
+// На iOS открытие в новой вкладке часто блокируется.
+// Поэтому оставляем стабильный путь: создаём файл и предлагаем "Поделиться/Сохранить".
+function downloadImage(dataUrl){
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = 'healthimpro.png';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function takePhoto(){
+  freeze = true;
+
+  if(facing === 'user'){
+    for(let i=8;i>0;i--){
+      countdown.textContent=i;
+      countdown.style.display='flex';
+      await sleep(1000);
+    }
+    countdown.style.display='none';
+  }
+
+  const out = document.createElement('canvas');
+  out.width = canvas.width;
+  out.height = canvas.height;
+  const octx = out.getContext('2d');
+  octx.drawImage(video,0,0);
+  octx.drawImage(canvas,0,0);
+
+  const dataUrl = out.toDataURL('image/png');
+  downloadImage(dataUrl);
+
+  freeze = false;
+}
+
+function drawOverlay(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const h = parseInt(heightInput.value,10);
+  if(!h) return;
+
+  const step = (canvas.height / h) * 10;
+  const cx = canvas.width/2;
+
+  ctx.strokeStyle='rgba(255,255,255,0.25)';
+  ctx.lineWidth=1;
+
+  for(let x=cx;x<=canvas.width;x+=step){
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
+  }
+  for(let x=cx-step;x>=0;x-=step){
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
+  }
+  for(let y=canvas.height;y>=0;y-=step){
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();
+  }
+
+  // Центральная ось
+  ctx.strokeStyle='rgba(0,170,255,0.95)';
+  ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,canvas.height);ctx.stroke();
+
+  // ДОБРОБУТ (без сердца)
+  ctx.fillStyle='#fff';
+  ctx.font='700 28px Arial';
+  ctx.textAlign='left';
+  ctx.fillText('ДОБРОБУТ',24,44);
+
+  // healthimpro.com — тонким шрифтом внизу, попадает в фото
+  ctx.font='300 16px Arial';
+  ctx.textAlign='center';
+  ctx.fillText('healthimpro.com', canvas.width/2, canvas.height - 20);
+}
+
+document.getElementById('btnStart').onclick=startCamera;
+document.getElementById('btnSwitch').onclick=switchCamera;
+document.getElementById('btnPhoto').onclick=takePhoto;
+
+(function loop(){
+  if(!freeze && video.videoWidth){
+    drawOverlay();
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>head>
+
+<body>
+
+<div id="stage">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
+</div>
+
+<div id="countdown">8</div>
+
+<div id="controls">
+  <input id="heightCm" type="number" placeholder="Рост (см)">
+  <button id="btnStart">Камера</button>
+  <button id="btnSwitch">↔</button>
+  <button id="btnPhoto">Фото</button>
+</div>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const heightInput = document.getElementById('heightCm');
+const countdown = document.getElementById('countdown');
+
+let stream = null;
+let facing = 'user';
+let freeze = false;
+
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+async function startCamera(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  stream = await navigator.mediaDevices.getUserMedia({
+    video:{facingMode:facing},audio:false
+  });
+  video.srcObject = stream;
+  await video.play();
+  while(!video.videoWidth) await sleep(16);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+}
+
+async function switchCamera(){
+  facing = facing === 'user' ? 'environment' : 'user';
+  await startCamera();
+}
+
 // ✅ Самый стабильный способ открыть картинку на iPhone:
 // делаем <a target=_blank href=dataURL> и кликаем по нему
 function openImageInNewTab(dataUrl){
