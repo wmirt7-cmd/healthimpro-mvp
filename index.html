@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Healthimpro — Central Grid 10cm</title>
+<title>Healthimpro — Posture Grid</title>
+
 <style>
-  body { margin:0; background:#000; overflow:hidden; font-family:Arial,sans-serif; }
+  body { margin:0; background:#000; overflow:hidden; font-family:Arial, Helvetica, sans-serif; }
   #stage { position:relative; width:100vw; height:100vh; }
   video, canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   canvas { pointer-events:none; }
@@ -13,33 +14,33 @@
   #controls{
     position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
     display:flex; gap:8px; padding:10px 12px;
-    background:rgba(0,0,0,.65); border-radius:12px; z-index:10; color:#fff;
-    align-items:center;
+    background:rgba(0,0,0,.65); border-radius:12px; z-index:10;
   }
-  input, button{ font-size:16px; padding:10px 12px; border-radius:10px; border:none; }
+  input, button{
+    font-size:16px; padding:10px 12px; border-radius:10px; border:none;
+  }
   button{ background:#1f2937; color:#fff; }
 
   #countdown{
     position:fixed; inset:0; display:none;
     align-items:center; justify-content:center;
-    font-size:72px; color:#fff; background:rgba(0,0,0,.55); z-index:20;
+    font-size:72px; color:#fff;
+    background:rgba(0,0,0,.55); z-index:20;
   }
 
-  /* Result view */
   #result{
     position:fixed; inset:0; background:#000; z-index:30; display:none;
     flex-direction:column;
   }
   #resultBar{
-    display:flex; gap:10px; padding:12px;
+    display:flex; gap:12px; padding:12px;
     background:rgba(0,0,0,.75); color:#fff; align-items:center;
   }
-  #resultBar button{ background:#1f2937; }
-  #hint{ font-size:12px; opacity:.85; }
   #resultImgWrap{ flex:1; display:flex; align-items:center; justify-content:center; }
   #resultImg{ max-width:100%; max-height:100%; width:100%; height:auto; }
 </style>
 </head>
+
 <body>
 
 <div id="stage">
@@ -50,7 +51,7 @@
 <div id="countdown">8</div>
 
 <div id="controls">
-  <input id="heightCm" type="number" min="80" max="250" placeholder="Рост (см)">
+  <input id="heightCm" type="number" placeholder="Рост (см)">
   <button id="btnStart">Камера</button>
   <button id="btnSwitch">↔</button>
   <button id="btnPhoto">Фото</button>
@@ -60,10 +61,9 @@
   <div id="resultBar">
     <button id="btnBack">Назад</button>
     <button id="btnShare">Поделиться</button>
-    <div id="hint">iPhone: удерживай палец на фото → «Сохранить в Фото»</div>
   </div>
   <div id="resultImgWrap">
-    <img id="resultImg" alt="result">
+    <img id="resultImg">
   </div>
 </div>
 
@@ -103,131 +103,125 @@
   }
 
   async function startCamera() {
-    try {
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing },
-        audio: false
-      });
-      video.srcObject = stream;
-      video.muted = true;
-      await video.play();
-      await waitForVideo();
-      resizeCanvas();
-    } catch (e) {
-      alert('Камера не запустилась. Проверь разрешения.');
-      console.error(e);
-    }
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:facing }, audio:false
+    });
+    video.srcObject = stream;
+    video.muted = true;
+    await video.play();
+    await waitForVideo();
+    resizeCanvas();
   }
 
-  function drawGridCentral10cm() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+  function drawHeart(cx, cy, size){
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(size, size);
+    ctx.beginPath();
+    ctx.moveTo(0, -0.3);
+    ctx.bezierCurveTo(-0.5, -0.8, -1.2, -0.2, 0, 0.9);
+    ctx.bezierCurveTo(1.1, -0.2, 0.5, -0.8, 0, -0.3);
+    ctx.closePath();
+    ctx.fillStyle = '#e60000';
+    ctx.fill();
+    ctx.restore();
+  }
 
-    const hCm = parseInt(heightInput.value, 10);
-    if (!hCm || hCm <= 0) return;
+  function drawGridAndBrand(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const hCm = parseInt(heightInput.value,10);
+    if(!hCm) return;
 
     const pxPerCm = canvas.height / hCm;
-    const stepPx = pxPerCm * 10; // 10 см
+    const step = pxPerCm * 10;
+    const cx = canvas.width / 2;
 
-    const W = canvas.width;
-    const H = canvas.height;
-    const centerX = W / 2;
-
-    // вертикальные линии: от центра влево/вправо
-    ctx.lineWidth = 1;
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-    for (let x = centerX; x <= W; x += stepPx) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    ctx.lineWidth = 1;
+
+    for(let x=cx; x<=canvas.width; x+=step){
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
     }
-    for (let x = centerX - stepPx; x >= 0; x -= stepPx) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    for(let x=cx-step; x>=0; x-=step){
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+    }
+    for(let y=canvas.height; y>=0; y-=step){
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
     }
 
-    // горизонтальные линии: от низа вверх (привязка к росту)
-    for (let y = H; y >= 0; y -= stepPx) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
-
-    // центральная линия сетки (синяя)
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(0,170,255,0.95)';
+    ctx.strokeStyle='rgba(0,170,255,0.95)';
+    ctx.lineWidth=3;
     ctx.beginPath();
-    ctx.moveTo(centerX, 0);
-    ctx.lineTo(centerX, H);
-    ctx.stroke();
+    ctx.moveTo(cx,0); ctx.lineTo(cx,canvas.height); ctx.stroke();
 
-    // подпись шага (всегда видна)
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.font = '22px Arial';
-    ctx.fillText('Шаг сетки: 10 см', 16, 34);
+    ctx.fillStyle='white';
+    ctx.font='28px Arial';
+    ctx.textAlign='center';
+    ctx.fillText('ДОБРОБУТ', canvas.width/2, 42);
+
+    ctx.beginPath();
+    ctx.arc(canvas.width/2 + 120, 32, 18, 0, Math.PI*2);
+    ctx.strokeStyle='white';
+    ctx.lineWidth=2;
+    ctx.stroke();
+    drawHeart(canvas.width/2 + 120, 32, 14);
+
+    ctx.font='16px Arial';
+    ctx.textAlign='center';
+    ctx.fillText('healthimpro.com', canvas.width/2, canvas.height-20);
   }
 
-  async function runCountdown(seconds) {
-    for (let i = seconds; i > 0; i--) {
-      countdown.textContent = i;
-      countdown.style.display = 'flex';
+  async function runCountdown(){
+    for(let i=8;i>0;i--){
+      countdown.textContent=i;
+      countdown.style.display='flex';
       await sleep(1000);
     }
-    countdown.style.display = 'none';
+    countdown.style.display='none';
   }
 
-  function composeCapture() {
-    const out = document.createElement('canvas');
-    out.width = canvas.width; out.height = canvas.height;
-    const octx = out.getContext('2d');
-    octx.drawImage(video, 0, 0);
-    octx.drawImage(canvas, 0, 0);
+  function compose(){
+    const out=document.createElement('canvas');
+    out.width=canvas.width; out.height=canvas.height;
+    const octx=out.getContext('2d');
+    octx.drawImage(video,0,0);
+    octx.drawImage(canvas,0,0);
     return out.toDataURL('image/png');
   }
 
-  async function takePhoto() {
-    if (!video.srcObject) return alert('Сначала включи камеру');
-    const hCm = parseInt(heightInput.value, 10);
-    if (!hCm || hCm <= 0) return alert('Введи рост (см)');
-
+  async function takePhoto(){
+    if(!video.srcObject) return;
     await waitForVideo();
     resizeCanvas();
-    drawGridCentral10cm();
-
-    if (facing === 'user') {
-      await runCountdown(8);
-      resizeCanvas();
-      drawGridCentral10cm();
+    drawGridAndBrand();
+    if(facing==='user'){
+      await runCountdown();
+      drawGridAndBrand();
     }
-
-    lastDataUrl = composeCapture();
+    lastDataUrl = compose();
     resultImg.src = lastDataUrl;
-    result.style.display = 'flex';
+    result.style.display='flex';
   }
 
-  btnStart.onclick = startCamera;
-  btnSwitch.onclick = async () => {
-    facing = (facing === 'user') ? 'environment' : 'user';
-    await startCamera();
-  };
-  btnPhoto.onclick = takePhoto;
+  btnStart.onclick=startCamera;
+  btnSwitch.onclick=async()=>{ facing=facing==='user'?'environment':'user'; await startCamera(); };
+  btnPhoto.onclick=takePhoto;
+  btnBack.onclick=()=>result.style.display='none';
 
-  btnBack.onclick = () => { result.style.display = 'none'; };
-
-  btnShare.onclick = async () => {
-    if (!lastDataUrl) return;
-    try {
-      const blob = await (await fetch(lastDataUrl)).blob();
-      const file = new File([blob], 'posture.png', { type:'image/png' });
-      if (navigator.canShare && navigator.canShare({ files:[file] }) && navigator.share) {
-        await navigator.share({ files:[file], title:'Posture' });
-      } else {
-        alert('Удерживай палец на фото → «Сохранить в Фото»');
-      }
-    } catch {
-      alert('Удерживай палец на фото → «Сохранить в Фото»');
+  btnShare.onclick=async()=>{
+    if(!lastDataUrl) return;
+    const blob=await (await fetch(lastDataUrl)).blob();
+    const file=new File([blob],'posture.png',{type:'image/png'});
+    if(navigator.share && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file]});
     }
   };
 
   (function loop(){
-    if (video.videoWidth) {
+    if(video.videoWidth){
       resizeCanvas();
-      drawGridCentral10cm();
+      drawGridAndBrand();
     }
     requestAnimationFrame(loop);
   })();
