@@ -114,36 +114,23 @@
     resizeCanvas();
   }
 
-  function drawHeart(cx, cy, size){
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.scale(size, size);
-    ctx.beginPath();
-    ctx.moveTo(0, -0.3);
-    ctx.bezierCurveTo(-0.5, -0.8, -1.2, -0.2, 0, 0.9);
-    ctx.bezierCurveTo(1.1, -0.2, 0.5, -0.8, 0, -0.3);
-    ctx.closePath();
-    ctx.fillStyle = '#e60000';
-    ctx.fill();
-    ctx.restore();
-  }
-
   function drawGridAndBrand(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
+
     const hCm = parseInt(heightInput.value,10);
     if(!hCm) return;
 
     const pxPerCm = canvas.height / hCm;
     const step = pxPerCm * 10;
-    const cx = canvas.width / 2;
+    const centerX = canvas.width / 2;
 
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
     ctx.lineWidth = 1;
 
-    for(let x=cx; x<=canvas.width; x+=step){
+    for(let x=centerX; x<=canvas.width; x+=step){
       ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
     }
-    for(let x=cx-step; x>=0; x-=step){
+    for(let x=centerX-step; x>=0; x-=step){
       ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
     }
     for(let y=canvas.height; y>=0; y-=step){
@@ -153,23 +140,18 @@
     ctx.strokeStyle='rgba(0,170,255,0.95)';
     ctx.lineWidth=3;
     ctx.beginPath();
-    ctx.moveTo(cx,0); ctx.lineTo(cx,canvas.height); ctx.stroke();
+    ctx.moveTo(centerX,0); ctx.lineTo(centerX,canvas.height); ctx.stroke();
 
-    ctx.fillStyle='white';
-    ctx.font='28px Arial';
-    ctx.textAlign='center';
-    ctx.fillText('ДОБРОБУТ', canvas.width/2, 42);
+    // ---- ДОБРОБУТ ----
+    ctx.fillStyle = 'white';
+    ctx.font = '36px -apple-system, Helvetica Neue, Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText('ДОБРОБУТ', centerX - 20, 44);
 
-    ctx.beginPath();
-    ctx.arc(canvas.width/2 + 120, 32, 18, 0, Math.PI*2);
-    ctx.strokeStyle='white';
-    ctx.lineWidth=2;
-    ctx.stroke();
-    drawHeart(canvas.width/2 + 120, 32, 14);
-
-    ctx.font='16px Arial';
-    ctx.textAlign='center';
-    ctx.fillText('healthimpro.com', canvas.width/2, canvas.height-20);
+    // нижняя подпись
+    ctx.font = '16px -apple-system, Helvetica Neue, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('healthimpro.com', canvas.width/2, canvas.height - 20);
   }
 
   async function runCountdown(){
