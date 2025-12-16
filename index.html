@@ -181,7 +181,7 @@ function drawOverlay(){
   ctx.stroke();
 
   // брендинг справа от оси
-const textX = cx + canvas.width * 0.15;
+const textX = Math.min(cx + canvas.width * 0.12, canvas.width - 260);
   ctx.fillStyle = '#fff';
   ctx.font = '700 28px Arial';
   ctx.textAlign = 'left';
