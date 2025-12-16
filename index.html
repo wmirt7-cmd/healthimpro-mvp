@@ -6,38 +6,99 @@
 <title>Healthimpro — Posture Grid</title>
 
 <style>
-  body { margin:0; background:#000; overflow:hidden; font-family:-apple-system, Helvetica Neue, Arial, sans-serif; }
-  #stage { position:relative; width:100vw; height:100vh; }
-  video, canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-  canvas { pointer-events:none; }
-
-  #controls{
-    position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
-    display:flex; gap:8px; padding:10px 12px;
-    background:rgba(0,0,0,.65); border-radius:12px; z-index:10;
-  }
-  input, button{
-    font-size:16px; padding:10px 12px; border-radius:10px; border:none;
-  }
-  button{ background:#1f2937; color:#fff; }
-
-  #countdown{
-    position:fixed; inset:0; display:none;
-    align-items:center; justify-content:center;
-    font-size:72px; color:#fff;
-    background:rgba(0,0,0,.55); z-index:20;
+  body {
+    margin: 0;
+    background: #000;
+    overflow: hidden;
+    font-family: -apple-system, Helvetica Neue, Arial, sans-serif;
   }
 
-  #result{
-    position:fixed; inset:0; background:#000; z-index:30; display:none;
-    flex-direction:column;
+  #stage {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
   }
-  #resultBar{
-    display:flex; gap:12px; padding:12px;
-    background:rgba(0,0,0,.75); color:#fff; align-items:center;
+
+  video, canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
-  #resultImgWrap{ flex:1; display:flex; align-items:center; justify-content:center; }
-  #resultImg{ max-width:100%; max-height:100%; width:100%; height:auto; }
+
+  canvas {
+    pointer-events: none;
+  }
+
+  #controls {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(0,0,0,.65);
+    border-radius: 12px;
+    z-index: 10;
+  }
+
+  input, button {
+    font-size: 16px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: none;
+  }
+
+  button {
+    background: #1f2937;
+    color: #fff;
+  }
+
+  #countdown {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 72px;
+    color: #fff;
+    background: rgba(0,0,0,.55);
+    z-index: 20;
+  }
+
+  #result {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 30;
+    display: none;
+    flex-direction: column;
+  }
+
+  #resultBar {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(0,0,0,.75);
+    color: #fff;
+    align-items: center;
+  }
+
+  #resultImgWrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #resultImg {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: auto;
+  }
 </style>
 </head>
 
@@ -51,7 +112,7 @@
 <div id="countdown">8</div>
 
 <div id="controls">
-  <input id="heightCm" type="number" min="80" max="250" placeholder="Рост (см)" />
+  <input id="heightCm" type="number" min="80" max="250" placeholder="Рост (см)">
   <button id="btnStart">Камера</button>
   <button id="btnSwitch">↔</button>
   <button id="btnPhoto">Фото</button>
@@ -63,7 +124,7 @@
     <button id="btnShare">Поделиться</button>
   </div>
   <div id="resultImgWrap">
-    <img id="resultImg" alt="result">
+    <img id="resultImg">
   </div>
 </div>
 
@@ -89,14 +150,17 @@
   let facing = 'user';
   let lastDataUrl = null;
 
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   async function waitForVideo() {
-    while (video.videoWidth === 0 || video.videoHeight === 0) await sleep(16);
+    while (video.videoWidth === 0 || video.videoHeight === 0) {
+      await sleep(16);
+    }
   }
 
   function resizeCanvas() {
-    const w = video.videoWidth, h = video.videoHeight;
+    const w = video.videoWidth;
+    const h = video.videoHeight;
     if (w && h && (canvas.width !== w || canvas.height !== h)) {
       canvas.width = w;
       canvas.height = h;
@@ -104,51 +168,56 @@
   }
 
   async function startCamera() {
-    try {
-      if (stream) stream.getTracks().forEach(t => t.stop());
+    if (stream) stream.getTracks().forEach(t => t.stop());
 
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing },
-        audio: false
-      });
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing },
+      audio: false
+    });
 
-      video.srcObject = stream;
-      video.muted = true;
-      await video.play();
-
-      await waitForVideo();
-      resizeCanvas();
-    } catch (e) {
-      alert('Камера не запустилась. Проверь разрешения.');
-      console.error(e);
-    }
+    video.srcObject = stream;
+    video.muted = true;
+    await video.play();
+    await waitForVideo();
+    resizeCanvas();
   }
 
   function drawGridAndBrand() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const hCm = parseInt(heightInput.value, 10);
-    if (!hCm || hCm <= 0) return;
+    if (!hCm) return;
 
     const pxPerCm = canvas.height / hCm;
-    const step = pxPerCm * 10; // 10 см
+    const step = pxPerCm * 10;
     const centerX = canvas.width / 2;
 
-    // Сетка: вертикали от центра + горизонтали от низа
+    // Сетка
     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
     ctx.lineWidth = 1;
 
     for (let x = centerX; x <= canvas.width; x += step) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-    }
-    for (let x = centerX - step; x >= 0; x -= step) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-    }
-    for (let y = canvas.height; y >= 0; y -= step) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
     }
 
-    // Центральная линия сетки (синяя)
+    for (let x = centerX - step; x >= 0; x -= step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+
+    for (let y = canvas.height; y >= 0; y -= step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+
+    // Центральная ось
     ctx.strokeStyle = 'rgba(0,170,255,0.95)';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -156,14 +225,19 @@
     ctx.lineTo(centerX, canvas.height);
     ctx.stroke();
 
-    // ДОБРОБУТ: жирно, полностью слева от оси, без обрезки
+    // ДОБРОБУТ — уменьшен, гарантированно не обрезается
     ctx.fillStyle = 'white';
-    ctx.font = '700 40px -apple-system, Helvetica Neue, Arial';
+    ctx.font = '700 33px -apple-system, Helvetica Neue, Arial';
     ctx.textAlign = 'left';
-    const logoX = Math.max(20, centerX - 260); // гарантирует "левее оси" и не обрежет слева
-    ctx.fillText('ДОБРОБУТ', logoX, 52);
 
-    // Низ: healthimpro.com тонко
+    const text = 'ДОБРОБУТ';
+    const metrics = ctx.measureText(text);
+    const safeGap = 20;
+    const logoX = Math.max(20, centerX - metrics.width - safeGap);
+
+    ctx.fillText(text, logoX, 50);
+
+    // Низ
     ctx.font = '300 16px -apple-system, Helvetica Neue, Arial';
     ctx.textAlign = 'center';
     ctx.fillText('healthimpro.com', canvas.width / 2, canvas.height - 20);
@@ -189,17 +263,13 @@
   }
 
   async function takePhoto() {
-    if (!video.srcObject) return alert('Сначала включи камеру');
-    const hCm = parseInt(heightInput.value, 10);
-    if (!hCm || hCm <= 0) return alert('Введи рост (см)');
-
+    if (!video.srcObject) return;
     await waitForVideo();
     resizeCanvas();
     drawGridAndBrand();
 
     if (facing === 'user') {
       await runCountdown();
-      resizeCanvas();
       drawGridAndBrand();
     }
 
@@ -210,23 +280,18 @@
 
   btnStart.onclick = startCamera;
   btnSwitch.onclick = async () => {
-    facing = (facing === 'user') ? 'environment' : 'user';
+    facing = facing === 'user' ? 'environment' : 'user';
     await startCamera();
   };
   btnPhoto.onclick = takePhoto;
-
-  btnBack.onclick = () => { result.style.display = 'none'; };
+  btnBack.onclick = () => result.style.display = 'none';
 
   btnShare.onclick = async () => {
     if (!lastDataUrl) return;
-    try {
-      const blob = await (await fetch(lastDataUrl)).blob();
-      const file = new File([blob], 'posture.png', { type: 'image/png' });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file] });
-      }
-    } catch (e) {
-      console.error(e);
+    const blob = await (await fetch(lastDataUrl)).blob();
+    const file = new File([blob], 'posture.png', { type: 'image/png' });
+    if (navigator.share && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file] });
     }
   };
 
