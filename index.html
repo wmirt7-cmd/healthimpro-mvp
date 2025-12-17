@@ -10,23 +10,40 @@ body{margin:0;background:#000;overflow:hidden;font-family:Arial,sans-serif}
 #stage{position:relative;width:100vw;height:100vh}
 video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 canvas{pointer-events:none}
+
 #controls{
   position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
   display:flex;gap:10px;padding:10px 14px;
   background:rgba(0,0,0,.65);border-radius:14px;z-index:10
 }
-input,button{font-size:16px;padding:10px 14px;border-radius:10px;border:none}
+input,button{
+  font-size:16px;padding:10px 14px;
+  border-radius:10px;border:none
+}
 button{background:#1f2937;color:#fff}
+
 #countdown{
   position:fixed;inset:0;display:none;
   align-items:center;justify-content:center;
   font-size:72px;color:#fff;
   background:rgba(0,0,0,.55);z-index:20
 }
+
+/* экран результата */
+#result{
+  position:fixed;inset:0;background:#000;
+  display:none;flex-direction:column;z-index:30
+}
+#result img{width:100%;height:auto}
+#resultBar{
+  display:flex;gap:10px;padding:12px;
+  background:rgba(0,0,0,.7)
+}
 </style>
 </head>
 
 <body>
+
 <div id="stage">
   <video id="video" autoplay playsinline muted></video>
   <canvas id="canvas"></canvas>
@@ -41,19 +58,34 @@ button{background:#1f2937;color:#fff}
   <button onclick="takePhoto()">Фото</button>
 </div>
 
+<!-- РЕЗУЛЬТАТ -->
+<div id="result">
+  <div id="resultBar">
+    <button onclick="shareImage()">Поделиться</button>
+    <button onclick="closeResult()">Назад</button>
+  </div>
+  <img id="resultImg">
+</div>
+
 <script>
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const heightInput = document.getElementById('heightCm');
 const countdown = document.getElementById('countdown');
+const result = document.getElementById('result');
+const resultImg = document.getElementById('resultImg');
 
 let stream=null, facing='user', freeze=false;
+let resultBlob=null;
+
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 async function startCamera(){
   if(stream) stream.getTracks().forEach(t=>t.stop());
-  stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:facing},audio:false});
+  stream = await navigator.mediaDevices.getUserMedia({
+    video:{facingMode:facing}, audio:false
+  });
   video.srcObject = stream;
   await video.play();
   while(!video.videoWidth) await sleep(16);
@@ -66,18 +98,10 @@ async function switchCamera(){
   await startCamera();
 }
 
-function downloadPNG(data){
-  const a=document.createElement('a');
-  a.href=data;
-  a.download=`healthimpro_${Date.now()}.png`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
 async function takePhoto(){
   if(!video.videoWidth) return;
   freeze=true;
+
   if(facing==='user'){
     for(let i=8;i>0;i--){
       countdown.textContent=i;
@@ -86,51 +110,68 @@ async function takePhoto(){
     }
     countdown.style.display='none';
   }
+
   const out=document.createElement('canvas');
   out.width=canvas.width;
   out.height=canvas.height;
   const octx=out.getContext('2d');
+
   octx.drawImage(video,0,0);
   octx.drawImage(canvas,0,0);
-  downloadPNG(out.toDataURL('image/png'));
+
+  out.toBlob(b=>{
+    resultBlob=b;
+    resultImg.src=URL.createObjectURL(b);
+    result.style.display='flex';
+  },'image/png');
+
   freeze=false;
+}
+
+function closeResult(){
+  result.style.display='none';
+}
+
+async function shareImage(){
+  if(!resultBlob) return;
+
+  const file = new File([resultBlob],'healthimpro.png',{type:'image/png'});
+
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    await navigator.share({
+      files:[file],
+      title:'Healthimpro'
+    });
+  }else{
+    alert('Поделиться не поддерживается на этом устройстве');
+  }
 }
 
 function drawOverlay(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-
   const cx = canvas.width/2;
 
   // ось
   ctx.strokeStyle='rgba(0,170,255,0.95)';
   ctx.lineWidth=3;
-  ctx.beginPath();
-  ctx.moveTo(cx,0);
-  ctx.lineTo(cx,canvas.height);
-  ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,canvas.height);ctx.stroke();
 
-  // брендинг — отступ = один пробел
+  // брендинг
   ctx.save();
   ctx.textAlign='left';
-
   ctx.font='700 28px Arial';
-  const space = ctx.measureText(' ').width;
-  const brandX = cx + space;
-
   ctx.fillStyle='#fff';
-  ctx.fillText('ДОБРОБУТ', brandX, 44);
-
+  ctx.fillText('ДОБРОБУТ', cx+12, 44);
   ctx.font='300 16px Arial';
-  ctx.fillStyle='rgba(255,255,255,0.85)';
-  ctx.fillText('healthimpro.com', brandX, canvas.height-18);
+  ctx.fillStyle='rgba(255,255,255,.85)';
+  ctx.fillText('healthimpro.com', cx+12, canvas.height-18);
   ctx.restore();
 
-  // сетка (если введён рост)
   const h=parseInt(heightInput.value,10);
   if(!h) return;
-  const step=(canvas.height/h)*10;
 
-  ctx.strokeStyle='rgba(255,255,255,0.25)';
+  const step=(canvas.height/h)*10;
+  ctx.strokeStyle='rgba(255,255,255,.25)';
   ctx.lineWidth=1;
 
   for(let x=cx;x<=canvas.width;x+=step){
@@ -150,4 +191,4 @@ function drawOverlay(){
 })();
 </script>
 </body>
-</html>html>
+</html>
