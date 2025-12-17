@@ -10,6 +10,7 @@ body{margin:0;background:#000;overflow:hidden;font-family:Arial,sans-serif}
 #stage{position:relative;width:100vw;height:100vh}
 video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 canvas{pointer-events:none}
+
 #controls{
   position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
   display:flex;gap:10px;padding:10px 14px;
@@ -17,6 +18,7 @@ canvas{pointer-events:none}
 }
 input,button{font-size:16px;padding:10px 14px;border-radius:10px;border:none}
 button{background:#1f2937;color:#fff}
+
 #countdown{
   position:fixed;inset:0;display:none;
   align-items:center;justify-content:center;
@@ -27,6 +29,7 @@ button{background:#1f2937;color:#fff}
 </head>
 
 <body>
+
 <div id="stage">
   <video id="video" autoplay playsinline muted></video>
   <canvas id="canvas"></canvas>
@@ -41,21 +44,30 @@ button{background:#1f2937;color:#fff}
   <button onclick="takePhoto()">Фото</button>
 </div>
 
-// === Safari hint ===
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-if (isSafari) {
-  const hint = document.getElementById('chromeHint');
-  const btn = document.getElementById('openChromeBtn');
-
-  if (hint && btn) {
-    hint.style.display = 'block';
-
-    btn.href =
-      'googlechrome://navigate?url=' +
-      encodeURIComponent(window.location.href);
-  }
-}
+<div id="chromeHint" style="
+  display:none;
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(0,0,0,0.85);
+  color:#fff;
+  padding:14px 18px;
+  border-radius:14px;
+  z-index:999;
+  font-size:14px;
+  text-align:center;
+  max-width:90%;
+">
+  <div style="margin-bottom:10px;">
+    Для корректного сохранения фото<br>
+    рекомендуем открыть страницу в Chrome
+  </div>
+  <a id="openChromeBtn"
+     style="color:#4da3ff;text-decoration:none;font-weight:600;">
+     Открыть в Chrome
+  </a>
+</div>
 
 <script>
 const video = document.getElementById('video');
@@ -82,18 +94,10 @@ async function switchCamera(){
   await startCamera();
 }
 
-function downloadPNG(data){
-  const a=document.createElement('a');
-  a.href=data;
-  a.download=`healthimpro_${Date.now()}.png`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
 async function takePhoto(){
   if(!video.videoWidth) return;
   freeze=true;
+
   if(facing==='user'){
     for(let i=8;i>0;i--){
       countdown.textContent=i;
@@ -102,22 +106,44 @@ async function takePhoto(){
     }
     countdown.style.display='none';
   }
+
   const out=document.createElement('canvas');
   out.width=canvas.width;
   out.height=canvas.height;
   const octx=out.getContext('2d');
   octx.drawImage(video,0,0);
   octx.drawImage(canvas,0,0);
-  downloadPNG(out.toDataURL('image/png'));
+
+  const dataUrl = out.toDataURL('image/png');
+
+  if (navigator.share) {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], 'healthimpro.png', { type: 'image/png' });
+    try {
+      await navigator.share({
+        title: 'Healthimpro',
+        text: 'Постуральное фото',
+        files: [file]
+      });
+    } catch(e){}
+  } else {
+    const win = window.open();
+    win.document.write(`
+      <html>
+        <body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center">
+          <img src="${dataUrl}" style="max-width:100%;max-height:100%">
+        </body>
+      </html>
+    `);
+  }
+
   freeze=false;
 }
 
 function drawOverlay(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-
   const cx = canvas.width/2;
 
-  // ось
   ctx.strokeStyle='rgba(0,170,255,0.95)';
   ctx.lineWidth=3;
   ctx.beginPath();
@@ -125,10 +151,8 @@ function drawOverlay(){
   ctx.lineTo(cx,canvas.height);
   ctx.stroke();
 
-  // брендинг — отступ = один пробел
   ctx.save();
   ctx.textAlign='left';
-
   ctx.font='700 28px Arial';
   const space = ctx.measureText(' ').width;
   const brandX = cx + space;
@@ -141,7 +165,6 @@ function drawOverlay(){
   ctx.fillText('healthimpro.com', brandX, canvas.height-18);
   ctx.restore();
 
-  // сетка (если введён рост)
   const h=parseInt(heightInput.value,10);
   if(!h) return;
   const step=(canvas.height/h)*10;
@@ -164,30 +187,18 @@ function drawOverlay(){
   if(!freeze && video.videoWidth) drawOverlay();
   requestAnimationFrame(loop);
 })();
+
+// Safari hint
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+if (isSafari) {
+  const hint = document.getElementById('chromeHint');
+  const btn = document.getElementById('openChromeBtn');
+  if (hint && btn) {
+    hint.style.display = 'block';
+    btn.href = 'googlechrome://navigate?url=' + encodeURIComponent(window.location.href);
+  }
+}
 </script>
-  <div id="chromeHint" style="
-  display:none;
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  background:rgba(0,0,0,0.85);
-  color:#fff;
-  padding:14px 18px;
-  border-radius:14px;
-  z-index:999;
-  font-size:14px;
-  text-align:center;
-  max-width:90%;
-">
-  <div style="margin-bottom:10px;">
-    Для корректного сохранения фото<br>
-    рекомендуем открыть страницу в Chrome
-  </div>
-  <a id="openChromeBtn"
-     style="color:#4da3ff;text-decoration:none;font-weight:600;">
-     Открыть в Chrome
-  </a>
-</div>
+
 </body>
-</html>html>
+</html>
