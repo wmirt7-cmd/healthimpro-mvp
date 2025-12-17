@@ -41,6 +41,22 @@ button{background:#1f2937;color:#fff}
   <button onclick="takePhoto()">Фото</button>
 </div>
 
+// === Safari hint ===
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+if (isSafari) {
+  const hint = document.getElementById('chromeHint');
+  const btn = document.getElementById('openChromeBtn');
+
+  if (hint && btn) {
+    hint.style.display = 'block';
+
+    btn.href =
+      'googlechrome://navigate?url=' +
+      encodeURIComponent(window.location.href);
+  }
+}
+
 <script>
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
@@ -149,5 +165,29 @@ function drawOverlay(){
   requestAnimationFrame(loop);
 })();
 </script>
+  <div id="chromeHint" style="
+  display:none;
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(0,0,0,0.85);
+  color:#fff;
+  padding:14px 18px;
+  border-radius:14px;
+  z-index:999;
+  font-size:14px;
+  text-align:center;
+  max-width:90%;
+">
+  <div style="margin-bottom:10px;">
+    Для корректного сохранения фото<br>
+    рекомендуем открыть страницу в Chrome
+  </div>
+  <a id="openChromeBtn"
+     style="color:#4da3ff;text-decoration:none;font-weight:600;">
+     Открыть в Chrome
+  </a>
+</div>
 </body>
 </html>html>
