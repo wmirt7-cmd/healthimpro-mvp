@@ -1,204 +1,200 @@
-2. <!DOCTYPE html>
-3. <html lang="ru">
-4. <head>
-5. <meta charset="UTF-8">
-6. <meta name="viewport" content="width=device-width, initial-scale=1.0">
-7. <title>Healthimpro</title>
-8. 
-9. <style>
-10. body{margin:0;background:#000;overflow:hidden;font-family:Arial,sans-serif}
-11. #stage{position:relative;width:100vw;height:100vh}
-12. video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-13. canvas{pointer-events:none}
-14. 
-15. #controls{
-16.   position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
-17.   display:flex;gap:10px;padding:10px 14px;
-18.   background:rgba(0,0,0,.65);border-radius:14px;z-index:10
-19. }
-20. input,button{font-size:16px;padding:10px 14px;border-radius:10px;border:none}
-21. button{background:#1f2937;color:#fff}
-22. 
-23. #countdown{
-24.   position:fixed;inset:0;display:none;
-25.   align-items:center;justify-content:center;
-26.   font-size:72px;color:#fff;
-27.   background:rgba(0,0,0,.55);z-index:20
-28. }
-29. </style>
-30. </head>
-31. 
-32. <body>
-33. 
-34. <div id="stage">
-35.   <video id="video" autoplay playsinline muted></video>
-36.   <canvas id="canvas"></canvas>
-37. </div>
-38. 
-39. <div id="countdown">8</div>
-40. 
-41. <div id="controls">
-42.   <input id="heightCm" type="number" placeholder="Рост (см)">
-43.   <button onclick="startCamera()">Камера</button>
-44.   <button onclick="switchCamera()">↔</button>
-45.   <button onclick="takePhoto()">Фото</button>
-46. </div>
-47. 
-48. <div id="chromeHint" style="
-49.   display:none;
-50.   position:fixed;
-51.   bottom:20px;
-52.   left:50%;
-53.   transform:translateX(-50%);
-54.   background:rgba(0,0,0,0.85);
-55.   color:#fff;
-56.   padding:14px 18px;
-57.   border-radius:14px;
-58.   z-index:999;
-59.   font-size:14px;
-60.   text-align:center;
-61.   max-width:90%;
-62. ">
-63.   <div style="margin-bottom:10px;">
-64.     Для корректного сохранения фото<br>
-65.     рекомендуем открыть страницу в Chrome
-66.   </div>
-67.   <a id="openChromeBtn"
-68.      style="color:#4da3ff;text-decoration:none;font-weight:600;">
-69.      Открыть в Chrome
-70.   </a>
-71. </div>
-72. 
-73. <script>
-74. const video = document.getElementById('video');
-75. const canvas = document.getElementById('canvas');
-76. const ctx = canvas.getContext('2d');
-77. const heightInput = document.getElementById('heightCm');
-78. const countdown = document.getElementById('countdown');
-79. 
-80. let stream=null, facing='user', freeze=false;
-81. const sleep = ms => new Promise(r=>setTimeout(r,ms));
-82. 
-83. async function startCamera(){
-84.   if(stream) stream.getTracks().forEach(t=>t.stop());
-85.   stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:facing},audio:false});
-86.   video.srcObject = stream;
-87.   await video.play();
-88.   while(!video.videoWidth) await sleep(16);
-89.   canvas.width = video.videoWidth;
-90.   canvas.height = video.videoHeight;
-91. }
-92. 
-93. async function switchCamera(){
-94.   facing = facing==='user'?'environment':'user';
-95.   await startCamera();
-96. }
-97. 
-98. async function takePhoto(){
-99.   if(!video.videoWidth) return;
-100.   freeze=true;
-101. 
-102.   if(facing==='user'){
-103.     for(let i=8;i>0;i--){
-104.       countdown.textContent=i;
-105.       countdown.style.display='flex';
-106.       await sleep(1000);
-107.     }
-108.     countdown.style.display='none';
-109.   }
-110. 
-111.   const out=document.createElement('canvas');
-112.   out.width=canvas.width;
-113.   out.height=canvas.height;
-114.   const octx=out.getContext('2d');
-115.   octx.drawImage(video,0,0);
-116.   octx.drawImage(canvas,0,0);
-117. 
-118.   const dataUrl = out.toDataURL('image/png');
-119. 
-120.   if (navigator.share) {
-121.     const blob = await (await fetch(dataUrl)).blob();
-122.     const file = new File([blob], 'healthimpro.png', { type: 'image/png' });
-123.     try {
-124.       await navigator.share({
-125.         title: 'Healthimpro',
-126.         text: 'Постуральное фото',
-127.         files: [file]
-128.       });
-129.     } catch(e){}
-130.   } else {
-131.     const win = window.open();
-132.     win.document.write(`
-133.       <html>
-134.         <body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center">
-135.           <img src="${dataUrl}" style="max-width:100%;max-height:100%">
-136.         </body>
-137.       </html>
-138.     `);
-139.   }
-140. 
-141.   freeze=false;
-142. }
-143. 
-144. function drawOverlay(){
-145.   ctx.clearRect(0,0,canvas.width,canvas.height);
-146.   const cx = canvas.width/2;
-147. 
-148.   ctx.strokeStyle='rgba(0,170,255,0.95)';
-149.   ctx.lineWidth=3;
-150.   ctx.beginPath();
-151.   ctx.moveTo(cx,0);
-152.   ctx.lineTo(cx,canvas.height);
-153.   ctx.stroke();
-154. 
-155.   ctx.save();
-156.   ctx.textAlign='left';
-157.   ctx.font='700 28px Arial';
-158.   const space = ctx.measureText(' ').width;
-159.   const brandX = cx + space;
-160. 
-161.   ctx.fillStyle='#fff';
-162.   ctx.fillText('ДОБРОБУТ', brandX, 44);
-163. 
-164.   ctx.font='300 16px Arial';
-165.   ctx.fillStyle='rgba(255,255,255,0.85)';
-166.   ctx.fillText('healthimpro.com', brandX, canvas.height-18);
-167.   ctx.restore();
-168. 
-169.   const h=parseInt(heightInput.value,10);
-170.   if(!h) return;
-171.   const step=(canvas.height/h)*10;
-172. 
-173.   ctx.strokeStyle='rgba(255,255,255,0.25)';
-174.   ctx.lineWidth=1;
-175. 
-176.   for(let x=cx;x<=canvas.width;x+=step){
-177.     ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
-178.   }
-179.   for(let x=cx-step;x>=0;x-=step){
-180.     ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
-181.   }
-182.   for(let y=canvas.height;y>=0;y-=step){
-183.     ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();
-184.   }
-185. }
-186. 
-187. (function loop(){
-188.   if(!freeze && video.videoWidth) drawOverlay();
-189.   requestAnimationFrame(loop);
-190. })();
-191. 
-192. // Safari hint
-193. const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-194. if (isSafari) {
-195.   const hint = document.getElementById('chromeHint');
-196.   const btn = document.getElementById('openChromeBtn');
-197.   if (hint && btn) {
-198.     hint.style.display = 'block';
-199.     btn.href = 'googlechrome://navigate?url=' + encodeURIComponent(window.location.href);
-200.   }
-201. }
-202. </script>
-203. 
-204. </body>
-205. </html>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Healthimpro</title>
+
+<style>
+body{
+  margin:0;
+  background:#000;
+  overflow:hidden;
+  font-family:Arial,sans-serif
+}
+#stage{
+  position:relative;
+  width:100vw;
+  height:100vh
+}
+video,canvas{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover
+}
+canvas{pointer-events:none}
+
+#controls{
+  position:fixed;
+  bottom:16px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:10px;
+  padding:10px 14px;
+  background:rgba(0,0,0,.65);
+  border-radius:14px;
+  z-index:10
+}
+input,button{
+  font-size:16px;
+  padding:10px 14px;
+  border-radius:10px;
+  border:none
+}
+button{
+  background:#1f2937;
+  color:#fff
+}
+
+#countdown{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-size:72px;
+  color:#fff;
+  background:rgba(0,0,0,.55);
+  z-index:20
+}
+</style>
+</head>
+
+<body>
+
+<div id="stage">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
+</div>
+
+<div id="countdown">8</div>
+
+<div id="controls">
+  <input id="heightCm" type="number" placeholder="Рост (см)">
+  <button onclick="startCamera()">Камера</button>
+  <button onclick="switchCamera()">↔</button>
+  <button onclick="takePhoto()">Фото</button>
+</div>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const heightInput = document.getElementById('heightCm');
+const countdown = document.getElementById('countdown');
+
+let stream = null;
+let facing = 'user';
+let freeze = false;
+
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+async function startCamera(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  stream = await navigator.mediaDevices.getUserMedia({
+    video:{facingMode:facing},
+    audio:false
+  });
+  video.srcObject = stream;
+  await video.play();
+
+  while(!video.videoWidth) await sleep(16);
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+}
+
+async function switchCamera(){
+  facing = facing === 'user' ? 'environment' : 'user';
+  await startCamera();
+}
+
+function downloadImage(data){
+  const a = document.createElement('a');
+  a.href = data;
+  a.download = `healthimpro_${Date.now()}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function takePhoto(){
+  if(!video.videoWidth) return;
+
+  freeze = true;
+
+  if(facing === 'user'){
+    for(let i=8;i>0;i--){
+      countdown.textContent = i;
+      countdown.style.display = 'flex';
+      await sleep(1000);
+    }
+    countdown.style.display = 'none';
+  }
+
+  drawOverlay();
+
+  const out = document.createElement('canvas');
+  out.width = canvas.width;
+  out.height = canvas.height;
+  const octx = out.getContext('2d');
+
+  octx.drawImage(video,0,0);
+  octx.drawImage(canvas,0,0);
+
+  downloadImage(out.toDataURL('image/png'));
+  freeze = false;
+}
+
+function drawOverlay(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const h = parseInt(heightInput.value,10);
+  if(!h) return;
+
+  const step = (canvas.height / h) * 10;
+  const cx = canvas.width / 2;
+
+  // сетка
+  ctx.strokeStyle='rgba(255,255,255,0.25)';
+  ctx.lineWidth=1;
+
+  for(let x=cx;x<=canvas.width;x+=step){
+    ctx.beginPath();
+    ctx.moveTo(x,0);
+    ctx.lineTo(x,canvas.height);
+    ctx.stroke();
+  }
+  for(let x=cx-step;x>=0;x-=step){
+    ctx.beginPath();
+    ctx.moveTo(x,0);
+    ctx.lineTo(x,canvas.height);
+    ctx.stroke();
+  }
+  for(let y=canvas.height;y>=0;y-=step){
+    ctx.beginPath();
+    ctx.moveTo(0,y);
+    ctx.lineTo(canvas.width,y);
+    ctx.stroke();
+  }
+
+  // центральная ось
+  ctx.strokeStyle='rgba(0,170,255,0.95)';
+  ctx.lineWidth=3;
+  ctx.beginPath();
+  ctx.moveTo(cx,0);
+  ctx.lineTo(cx,canvas.height);
+  ctx.stroke();
+}
+
+(function loop(){
+  if(!freeze && video.videoWidth) drawOverlay();
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
