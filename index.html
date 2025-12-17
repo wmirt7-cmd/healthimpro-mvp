@@ -7,7 +7,7 @@
 
 <style>
 body{margin:0;background:#000;overflow:hidden;font-family:Arial,sans-serif}
-#stage{position:relative;width:100vw;height:100vh;display:none}
+#stage{position:relative;width:100vw;height:100vh}
 video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 canvas{pointer-events:none}
 
@@ -29,6 +29,7 @@ button{background:#1f2937;color:#fff}
   background:rgba(0,0,0,.55);z-index:20
 }
 
+/* экран результата */
 #result{
   position:fixed;inset:0;background:#000;
   display:none;flex-direction:column;z-index:30
@@ -39,18 +40,6 @@ button{background:#1f2937;color:#fff}
   background:rgba(0,0,0,.7)
 }
 </style>
-
-<!-- Supabase -->
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script>
-const SUPABASE_URL = 'https://prgutdllqcbvwuxppchu.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_UGsgI0u_J0D1zd840AYptQ_eg3gaNq1';
-
-const supabase = supabaseJs.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
-</script>
 </head>
 
 <body>
@@ -63,16 +52,10 @@ const supabase = supabaseJs.createClient(
 <div id="countdown">8</div>
 
 <div id="controls">
-  <input id="emailInput" type="email" placeholder="E-mail">
-  <button onclick="login()">Войти</button>
-
-  <div id="appControls" style="display:none;gap:10px;">
-    <input id="heightCm" type="number" placeholder="Рост (см)">
-    <button onclick="startCamera()">Камера</button>
-    <button onclick="switchCamera()">↔</button>
-    <button onclick="takePhoto()">Фото</button>
-    <button onclick="logout()">Выйти</button>
-  </div>
+  <input id="heightCm" type="number" placeholder="Рост (см)">
+  <button onclick="startCamera()">Камера</button>
+  <button onclick="switchCamera()">↔</button>
+  <button onclick="takePhoto()">Фото</button>
 </div>
 
 <div id="result">
@@ -91,49 +74,11 @@ const heightInput = document.getElementById('heightCm');
 const countdown = document.getElementById('countdown');
 const result = document.getElementById('result');
 const resultImg = document.getElementById('resultImg');
-const stage = document.getElementById('stage');
-const emailInput = document.getElementById('emailInput');
-const appControls = document.getElementById('appControls');
 
-let stream=null, facing='user', freeze=false, resultBlob=null;
+let stream=null, facing='user', freeze=false;
+let resultBlob=null;
+
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
-
-/* ================= AUTH ================= */
-
-async function login(){
-  const email = emailInput.value.trim();
-  if(!email) return alert('Введите e-mail');
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options:{
-      emailRedirectTo: window.location.href
-    }
-  });
-
-  if(error) alert(error.message);
-  else alert('Проверьте почту и перейдите по ссылке');
-}
-
-async function logout(){
-  await supabase.auth.signOut();
-  location.reload();
-}
-
-async function checkSession(){
-  const { data } = await supabase.auth.getSession();
-  if(data.session){
-    onLogin();
-  }
-}
-
-function onLogin(){
-  emailInput.style.display='none';
-  appControls.style.display='flex';
-  stage.style.display='block';
-}
-
-/* ================= CAMERA ================= */
 
 async function startCamera(){
   if(stream) stream.getTracks().forEach(t=>t.stop());
@@ -196,23 +141,25 @@ async function shareImage(){
   }
 }
 
-/* ================= DRAW ================= */
-
 function drawOverlay(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const cx = canvas.width/2;
 
+  // центральная ось
   ctx.strokeStyle='rgba(0,170,255,0.95)';
   ctx.lineWidth=3;
   ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,canvas.height);ctx.stroke();
 
+  // брендинг
+  ctx.save();
+  ctx.textAlign='left';
   ctx.font='700 28px Arial';
   ctx.fillStyle='#fff';
   ctx.fillText('ДОБРОБУТ', cx+12, 44);
-
   ctx.font='300 16px Arial';
   ctx.fillStyle='rgba(255,255,255,.85)';
   ctx.fillText('healthimpro.com', cx+12, canvas.height-18);
+  ctx.restore();
 
   const h=parseInt(heightInput.value,10);
   if(!h) return;
@@ -236,28 +183,6 @@ function drawOverlay(){
   if(!freeze && video.videoWidth) drawOverlay();
   requestAnimationFrame(loop);
 })();
-
-checkSession();
- async function login() {
-  const email = document.getElementById('emailInput').value;
-  if (!email) {
-    alert('Введите email');
-    return;
-  }
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email: email,
-    options: {
-      emailRedirectTo: 'https://healthimpro.com'
-    }
-  });
-
-  if (error) {
-    alert(error.message);
-  } else {
-    alert('Проверьте почту для входа');
-  }
- } 
 </script>
 
 </body>
