@@ -40,6 +40,19 @@ button{background:#1f2937;color:#fff}
   background:rgba(0,0,0,.7)
 }
 </style>
+
+<!-- Supabase -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://prgutdllqcbvwuxppchu.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_UGsgI0u_J0D1zd840AYptQ_eg3gaNq1';
+
+  const supabase = supabaseJs.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+</script>
+
 </head>
 
 <body>
@@ -58,7 +71,6 @@ button{background:#1f2937;color:#fff}
   <button onclick="takePhoto()">Фото</button>
 </div>
 
-<!-- РЕЗУЛЬТАТ -->
 <div id="result">
   <div id="resultBar">
     <button onclick="shareImage()">Поделиться</button>
@@ -78,7 +90,6 @@ const resultImg = document.getElementById('resultImg');
 
 let stream=null, facing='user', freeze=false;
 let resultBlob=null;
-
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 async function startCamera(){
@@ -134,16 +145,11 @@ function closeResult(){
 
 async function shareImage(){
   if(!resultBlob) return;
-
   const file = new File([resultBlob],'healthimpro.png',{type:'image/png'});
-
   if(navigator.canShare && navigator.canShare({files:[file]})){
-    await navigator.share({
-      files:[file],
-      title:'Healthimpro'
-    });
-  }else{
-    alert('Поделиться не поддерживается на этом устройстве');
+    await navigator.share({files:[file],title:'Healthimpro'});
+  } else {
+    alert('Поделиться не поддерживается');
   }
 }
 
@@ -151,12 +157,10 @@ function drawOverlay(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const cx = canvas.width/2;
 
-  // ось
   ctx.strokeStyle='rgba(0,170,255,0.95)';
   ctx.lineWidth=3;
   ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,canvas.height);ctx.stroke();
 
-  // брендинг
   ctx.save();
   ctx.textAlign='left';
   ctx.font='700 28px Arial';
@@ -190,5 +194,6 @@ function drawOverlay(){
   requestAnimationFrame(loop);
 })();
 </script>
+
 </body>
 </html>
