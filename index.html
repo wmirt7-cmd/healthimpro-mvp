@@ -65,10 +65,18 @@ button{background:#1f2937;color:#fff}
 <div id="countdown">8</div>
 
 <div id="controls">
-  <input id="heightCm" type="number" placeholder="Рост (см)">
-  <button onclick="startCamera()">Камера</button>
-  <button onclick="switchCamera()">↔</button>
-  <button onclick="takePhoto()">Фото</button>
+  <!-- AUTH -->
+  <input id="emailInput" type="email" placeholder="E-mail" />
+  <button onclick="login()">Войти</button>
+
+  <!-- APP (появится после входа) -->
+  <div id="appControls" style="display:none;gap:10px;">
+    <input id="heightCm" type="number" placeholder="Рост (см)">
+    <button onclick="startCamera()">Камера</button>
+    <button onclick="switchCamera()">↔</button>
+    <button onclick="takePhoto()">Фото</button>
+    <button onclick="logout()">Выйти</button>
+  </div>
 </div>
 
 <div id="result">
